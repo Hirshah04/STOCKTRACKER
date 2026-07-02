@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stocktaker - Shop Inventory & Stock Flow</title>
+  <meta name="description" content="A premium, price-free stock and inventory tracker designed for small shops. Track sales, additions, damages, and staff.">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Midnight Aurora Glowing Blobs -->
+  <div class="aurora-blob blob-violet"></div>
+  <div class="aurora-blob blob-cyan"></div>
+  <div class="aurora-blob blob-rose"></div>
+
+  <!-- ================= AUTH SCREEN ================= -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="logo-container">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+        </div>
+        <h1>Stocktaker</h1>
+        <p>Log in to access your shop's inventory</p>
+      </div>
+
+      <form id="login-form" class="auth-form">
+        <div class="form-group">
+          <label for="login-username">Username</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <input type="text" id="login-username" placeholder="e.g. owner or staff" required autocomplete="username">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">
+          <span>Sign In</span>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </button>
+      </form>
+
+      <p class="auth-toggle-text">New shop? <a href="#" id="go-to-register">Register Shop</a></p>
+
+      <div class="auth-footer">
+        <p>Demo Accounts:</p>
+        <div class="demo-creds">
+          <div><strong>Owner:</strong> <code>owner</code> / <code>owner123</code></div>
+          <div><strong>Staff:</strong> <code>staff</code> / <code>staff123</code></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SHOP REGISTRATION SETUP SCREEN ================= -->
+  <div id="shop-setup-screen" class="auth-screen hidden">
+    <div class="auth-card setup-card">
+      <div class="auth-header">
+        <div class="logo-container setup-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        </div>
+        <h1>Register Your Shop</h1>
+        <p>Set up your shop details to begin tracking stock.</p>
+      </div>
+
+      <form id="shop-setup-form" class="auth-form">
+        <div class="form-group">
+          <label for="setup-shop-name">Shop Name*</label>
+          <input type="text" id="setup-shop-name" placeholder="e.g. Metro Supermarket" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="setup-shop-phone">Contact Number*</label>
+            <input type="tel" id="setup-shop-phone" placeholder="e.g. +1 555-0199" required>
+          </div>
+
+          <div class="form-group">
+            <label for="setup-shop-email">Email Address*</label>
+            <input type="email" id="setup-shop-email" placeholder="e.g. info@metrosuper.com" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="setup-owner-username">Owner Username*</label>
+            <input type="text" id="setup-owner-username" placeholder="e.g. owner" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="setup-owner-password">Owner Password*</label>
+            <input type="password" id="setup-owner-password" placeholder="••••••••" required autocomplete="new-password">
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">
+          <span>Complete Registration</span>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </button>
+      </form>
+
+      <p class="auth-toggle-text">Already registered? <a href="#" id="go-to-login">Sign In</a></p>
+    </div>
+  </div>
+
+  <!-- ================= MAIN APP LAYOUT ================= -->
+  <div id="app-layout" class="app-layout hidden">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+        </div>
+        <div class="brand-text-wrapper">
+          <span id="sidebar-shop-name" class="brand-name">My Shop</span>
+          <span id="sidebar-shop-email" class="brand-sub">Register Shop</span>
+        </div>
+      </div>
+
+      <div class="user-profile">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div class="user-details">
+          <span id="user-name" class="user-username">User</span>
+          <span id="user-badge" class="badge-role">Role</span>
+        </div>
+      </div>
+
+      <!-- Database Status Badge -->
+      <div id="db-status-container" class="db-status-container">
+        <span id="db-dot" class="db-dot"></span>
+        <span id="db-status-text" class="db-status-text">Connecting Database...</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <ul>
+          <li>
+            <a href="#" class="nav-link active" data-tab="dashboard">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+              <span>Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-link" data-tab="inventory">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+              <span>Stock Catalog</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" class="nav-link" data-tab="transactions">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              <span>Activity Logs</span>
+            </a>
+          </li>
+          <li class="owner-only">
+            <a href="#" class="nav-link" data-tab="staff">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <span>Staff Accounts</span>
+            </a>
+          </li>
+          <li class="owner-only">
+            <a href="#" class="nav-link" data-tab="settings">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              <span>Shop Settings</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="theme-toggle" class="btn btn-theme-toggle btn-block">
+          <svg class="sun-icon hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          <span class="theme-text">Light Mode</span>
+        </button>
+        <button id="logout-btn" class="btn btn-danger-outline btn-block">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <span>Log Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top Mobile Header -->
+      <header class="mobile-header">
+        <button id="mobile-logout-btn" class="mobile-icon-btn text-danger" title="Log Out">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
+        <span id="mobile-shop-title" class="mobile-brand">Stocktaker</span>
+        <button id="mobile-theme-toggle" class="mobile-icon-btn">
+          <svg class="sun-icon hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle></svg>
+          <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </header>
+
+      <!-- Dynamic Page Container -->
+      <div class="page-container">
+
+        <!-- ================= TAB: DASHBOARD ================= -->
+        <section id="tab-dashboard" class="tab-panel">
+          <div class="panel-header">
+            <div>
+              <h2 class="page-title">Welcome Back, <span id="welcome-name">User</span>!</h2>
+              <p id="dashboard-shop-subtitle" class="page-subtitle">Inventory summary for your shop.</p>
+            </div>
+            <div id="quick-actions-bar" class="quick-actions-bar">
+              <!-- Dynamically populated buttons -->
+            </div>
+          </div>
+
+          <!-- Stats Grid (All Quantities, No Pricing) -->
+          <div class="stats-grid">
+            <div class="stat-card card-violet">
+              <div class="stat-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">Unique Products</span>
+                <span id="stat-total-items" class="stat-value">0</span>
+              </div>
+            </div>
+            
+            <div class="stat-card card-cyan">
+              <div class="stat-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">Total Stock Quantity</span>
+                <span id="stat-total-qty" class="stat-value">0</span>
+              </div>
+            </div>
+
+            <div class="stat-card card-emerald">
+              <div class="stat-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">Items Sold Today</span>
+                <span id="stat-total-sales" class="stat-value">0</span>
+              </div>
+            </div>
+
+            <div class="stat-card card-rose">
+              <div class="stat-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">Low Stock Alerts</span>
+                <span id="stat-low-stock" class="stat-value">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alerts & Recent Activity -->
+          <div class="dashboard-details-grid">
+            <!-- Low Stock Warnings -->
+            <div class="detail-card">
+              <div class="detail-card-header">
+                <h3>Low Stock Alerts</h3>
+                <span class="badge badge-rose" id="low-stock-count-badge">0 Items</span>
+              </div>
+              <div id="low-stock-list" class="list-container">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="detail-card">
+              <div class="detail-card-header">
+                <h3>Recent Activity</h3>
+                <a href="#" class="view-all-link" data-tab-link="transactions">View All Logs</a>
+              </div>
+              <div id="recent-transactions-list" class="list-container">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= TAB: INVENTORY ================= -->
+        <section id="tab-inventory" class="tab-panel hidden">
+          <div class="panel-header">
+            <div>
+              <h2 class="page-title">Stock Catalog</h2>
+              <p class="page-subtitle">Track and manage all product stock levels.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="btn btn-outline" id="export-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Export CSV</span>
+              </button>
+              <button class="btn btn-primary" onclick="openAddStockModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Add Stock</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Filters Bar -->
+          <div class="filters-bar">
+            <div class="search-box">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="inventory-search" placeholder="Search by product name or category...">
+            </div>
+            <div class="filter-dropdowns">
+              <select id="filter-category" class="filter-select">
+                <option value="all">All Categories</option>
+              </select>
+              <select id="filter-status" class="filter-select">
+                <option value="all">All Statuses</option>
+                <option value="in-stock">In Stock</option>
+                <option value="low-stock">Low Stock</option>
+                <option value="out-of-stock">Out of Stock</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Inventory Table -->
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Category</th>
+                  <th>Quantity</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ================= TAB: TRANSACTIONS ================= -->
+        <section id="tab-transactions" class="tab-panel hidden">
+          <div class="panel-header">
+            <div>
+              <h2 class="page-title">Activity Logs</h2>
+              <p class="page-subtitle">A comprehensive audit trail of all stock additions, sales, and damages.</p>
+            </div>
+            <div class="panel-actions">
+              <button class="btn btn-danger-outline" id="clear-logs-btn" style="display: none;">Clear Logs</button>
+            </div>
+          </div>
+
+          <!-- Filters Bar -->
+          <div class="filters-bar">
+            <div class="search-box">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="transactions-search" placeholder="Search by item name, user, or notes...">
+            </div>
+            <div class="filter-dropdowns">
+              <select id="filter-transaction-type" class="filter-select">
+                <option value="all">All Activities</option>
+                <option value="add">Stock Added</option>
+                <option value="sell">Stock Sold</option>
+                <option value="remove" class="owner-only">Stock Removed</option>
+                <option value="damage" class="owner-only">Stock Damaged</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Transactions Table -->
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Product</th>
+                  <th>Activity Type</th>
+                  <th>Quantity Changed</th>
+                  <th>Logged By</th>
+                </tr>
+              </thead>
+              <tbody id="transactions-table-body">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ================= TAB: STAFF MEMBERS ================= -->
+        <section id="tab-staff" class="tab-panel owner-only hidden">
+          <div class="panel-header">
+            <div>
+              <h2 class="page-title">Staff Accounts</h2>
+              <p class="page-subtitle">Create and manage access accounts for your staff.</p>
+            </div>
+          </div>
+
+          <div class="staff-layout">
+            <!-- Register Staff Card -->
+            <div class="detail-card form-card">
+              <h3>Create Staff Account</h3>
+              <form id="staff-register-form">
+                <div class="form-group">
+                  <label for="reg-username">Username</label>
+                  <input type="text" id="reg-username" placeholder="e.g. john_cashier" required autocomplete="username">
+                  <span class="form-help">Must be unique, letters/numbers only.</span>
+                </div>
+                <div class="form-group">
+                  <label for="reg-password">Password</label>
+                  <input type="password" id="reg-password" placeholder="••••••••" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                  <span>Create Account</span>
+                </button>
+              </form>
+            </div>
+
+            <!-- Staff List Table -->
+            <div class="detail-card staff-list-card">
+              <h3>Active Staff Members</h3>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Username</th>
+                      <th>Role Badge</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="staff-list-body">
+                    <!-- Injected via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= TAB: SETTINGS (SHOP INFO) ================= -->
+        <section id="tab-settings" class="tab-panel owner-only hidden">
+          <div class="panel-header">
+            <div>
+              <h2 class="page-title">Shop Settings</h2>
+              <p class="page-subtitle">Update your shop registration information.</p>
+            </div>
+          </div>
+
+          <div class="settings-layout">
+            <div class="detail-card form-card settings-card">
+              <h3>Shop Profile Information</h3>
+              <form id="shop-edit-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="edit-shop-name">Shop Name*</label>
+                    <input type="text" id="edit-shop-name" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="edit-shop-phone">Contact Number*</label>
+                    <input type="tel" id="edit-shop-phone" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="edit-shop-email">Email Address*</label>
+                  <input type="email" id="edit-shop-email" required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                  <span>Save Profile</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Backdrop for modals -->
+  <div id="modal-backdrop" class="modal-backdrop hidden"></div>
+
+  <!-- 1. Add Stock Modal (Simplified: Stock Name and Quantity, Dynamic New Product fields) -->
+  <div id="modal-add-stock" class="modal hidden">
+    <div class="modal-header">
+      <h3>Add / Restock Items</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-stock')">&times;</button>
+    </div>
+    <form id="form-add-stock">
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="add-stock-name">Product Name*</label>
+          <div class="input-wrapper">
+            <input type="text" id="add-stock-name" placeholder="Enter product name (e.g. Whole Milk 1L)" required autocomplete="off" list="product-names-datalist">
+            <datalist id="product-names-datalist">
+              <!-- Dynamically populated with existing products -->
+            </datalist>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="add-stock-qty">Quantity to Add*</label>
+          <input type="number" id="add-stock-qty" placeholder="Enter quantity" min="1" required>
+        </div>
+
+        <!-- Dynamic Fields: Only visible if the typed product name is NEW -->
+        <div id="new-product-fields" class="new-product-fields hidden">
+          <div class="new-product-alert">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>New product detected! Please specify category and low stock threshold.</span>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="new-prod-category">Category</label>
+              <input type="text" id="new-prod-category" placeholder="e.g. Snacks" list="category-suggestions">
+              <datalist id="category-suggestions">
+                <!-- Dynamically populated -->
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label for="new-prod-min">Low Stock Threshold</label>
+              <input type="number" id="new-prod-min" placeholder="5" min="1" value="5">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group owner-only">
+          <label for="add-stock-notes">Delivery Notes / Reason (Optional)</label>
+          <input type="text" id="add-stock-notes" placeholder="e.g. Supplier delivery, Weekly restock">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-stock')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Stock</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 2. Rest of Stock Actions Modal (Sell, Damage, Remove) -->
+  <div id="modal-stock-action" class="modal hidden">
+    <div class="modal-header">
+      <h3 id="stock-action-title">Stock Action</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-stock-action')">&times;</button>
+    </div>
+    <form id="form-stock-action">
+      <input type="hidden" id="action-item-id">
+      <input type="hidden" id="action-type"> <!-- 'sell', 'damage', 'remove' -->
+      
+      <div class="modal-body">
+        <div class="product-summary-card">
+          <div class="summary-row">
+            <div>
+              <span class="summary-label">Product Name:</span>
+              <strong id="action-product-name" class="summary-value">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">Current Stock:</span>
+              <strong id="action-current-qty" class="summary-value">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="action-qty" id="action-qty-label">Quantity</label>
+          <input type="number" id="action-qty" min="1" required placeholder="Enter quantity">
+          <span id="action-qty-error" class="form-error hidden">Cannot exceed current stock level.</span>
+        </div>
+
+        <div class="form-group owner-only" id="action-notes-group">
+          <label for="action-notes">Reason / Notes (Optional)</label>
+          <input type="text" id="action-notes" placeholder="e.g. Broken packaging, customer returned">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-stock-action')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="stock-action-submit-btn">Submit Action</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Javascript Logic -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="config.js"></script>
+  <script src="users.js"></script>
+  <script src="inventory.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
