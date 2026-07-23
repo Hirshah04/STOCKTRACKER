@@ -202,7 +202,10 @@
         <button id="mobile-logout-btn" class="mobile-icon-btn text-danger" title="Log Out">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </button>
-        <span id="mobile-shop-title" class="mobile-brand">Stocktaker</span>
+        <div class="mobile-brand-wrapper">
+          <span id="mobile-shop-title" class="mobile-brand">Stocktaker</span>
+          <span id="mobile-db-dot" class="db-dot" title="Database Status"></span>
+        </div>
         <button id="mobile-theme-toggle" class="mobile-icon-btn">
           <svg class="sun-icon hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle></svg>
           <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -328,6 +331,11 @@
                 <option value="low-stock">Low Stock</option>
                 <option value="out-of-stock">Out of Stock</option>
               </select>
+              <select id="filter-location" class="filter-select">
+                <option value="all">All Locations</option>
+                <option value="Shop">Shop</option>
+                <option value="Godown">Godown</option>
+              </select>
             </div>
           </div>
 
@@ -376,6 +384,7 @@
                 <option value="remove" class="owner-only">Stock Removed</option>
                 <option value="damage" class="owner-only">Stock Damaged</option>
               </select>
+              <input type="date" id="filter-transaction-date" class="filter-select" title="Filter by Date">
             </div>
           </div>
 
@@ -539,6 +548,20 @@
           </div>
         </div>
 
+        <div class="form-row">
+          <div class="form-group">
+            <label for="add-stock-location">Storage Location</label>
+            <select id="add-stock-location">
+              <option value="Shop">Shop</option>
+              <option value="Godown">Godown</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="add-stock-rag">Rag / Rack Number (Optional)</label>
+            <input type="text" id="add-stock-rag" placeholder="e.g. A-3" autocomplete="off">
+          </div>
+        </div>
+
         <div class="form-group owner-only">
           <label for="add-stock-notes">Delivery Notes / Reason (Optional)</label>
           <input type="text" id="add-stock-notes" placeholder="e.g. Supplier delivery, Weekly restock">
@@ -571,6 +594,12 @@
             <div>
               <span class="summary-label">Current Stock:</span>
               <strong id="action-current-qty" class="summary-value">-</strong>
+            </div>
+          </div>
+          <div class="summary-row" style="margin-top: 8px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+            <div>
+              <span class="summary-label">Storage Location:</span>
+              <strong id="action-storage-location" class="summary-value">-</strong>
             </div>
           </div>
         </div>

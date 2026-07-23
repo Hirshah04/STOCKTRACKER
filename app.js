@@ -48,6 +48,10 @@ function init() {
         dbDot.className = "db-dot connected";
         dbStatusText.textContent = "Cloud Sync Active";
       }
+      const mobileDbDot = document.getElementById("mobile-db-dot");
+      if (mobileDbDot) {
+        mobileDbDot.className = "db-dot connected";
+      }
 
       // Establish global real-time listeners for users and shops
       db.ref("users").on("value", snapshot => {
@@ -113,6 +117,10 @@ function fallbackToLocalStorage(dbDot, dbStatusText) {
   if (dbDot) {
     dbDot.className = "db-dot local";
     dbStatusText.textContent = "Browser Storage (Local)";
+  }
+  const mobileDbDot = document.getElementById("mobile-db-dot");
+  if (mobileDbDot) {
+    mobileDbDot.className = "db-dot local";
   }
   const savedUsers = localStorage.getItem("stocktaker_users");
   const savedShops = localStorage.getItem("stocktaker_shops");
@@ -225,6 +233,7 @@ const dom = {
   sidebarShopName: document.getElementById("sidebar-shop-name"),
   sidebarShopEmail: document.getElementById("sidebar-shop-email"),
   mobileShopTitle: document.getElementById("mobile-shop-title"),
+  mobileDbDot: document.getElementById("mobile-db-dot"),
   userAvatar: document.getElementById("user-avatar"),
   userName: document.getElementById("user-name"),
   userBadge: document.getElementById("user-badge"),
@@ -254,12 +263,14 @@ const dom = {
   inventorySearch: document.getElementById("inventory-search"),
   filterCategory: document.getElementById("filter-category"),
   filterStatus: document.getElementById("filter-status"),
+  filterLocation: document.getElementById("filter-location"),
   inventoryTableBody: document.getElementById("inventory-table-body"),
   exportBtn: document.getElementById("export-btn"),
   
   // Transactions Tab
   transactionsSearch: document.getElementById("transactions-search"),
   filterTransactionType: document.getElementById("filter-transaction-type"),
+  filterTransactionDate: document.getElementById("filter-transaction-date"),
   transactionsTableBody: document.getElementById("transactions-table-body"),
   clearLogsBtn: document.getElementById("clear-logs-btn"),
   
@@ -278,6 +289,8 @@ const dom = {
   addStockName: document.getElementById("add-stock-name"),
   addStockQty: document.getElementById("add-stock-qty"),
   addStockNotes: document.getElementById("add-stock-notes"),
+  addStockLocation: document.getElementById("add-stock-location"),
+  addStockRag: document.getElementById("add-stock-rag"),
   newProductFields: document.getElementById("new-product-fields"),
   newProdCategory: document.getElementById("new-prod-category"),
   newProdMin: document.getElementById("new-prod-min"),
@@ -295,6 +308,7 @@ const dom = {
   actionQtyLabel: document.getElementById("action-qty-label"),
   actionQty: document.getElementById("action-qty"),
   actionQtyError: document.getElementById("action-qty-error"),
+  actionStorageLocation: document.getElementById("action-storage-location"),
   actionNotesGroup: document.getElementById("action-notes-group"),
   actionNotes: document.getElementById("action-notes"),
   stockActionSubmitBtn: document.getElementById("stock-action-submit-btn")
@@ -537,8 +551,13 @@ function setupEventListeners() {
   dom.inventorySearch.addEventListener("input", renderInventory);
   dom.filterCategory.addEventListener("change", renderInventory);
   dom.filterStatus.addEventListener("change", renderInventory);
+  if (dom.filterLocation) dom.filterLocation.addEventListener("change", renderInventory);
   dom.transactionsSearch.addEventListener("input", renderTransactions);
   dom.filterTransactionType.addEventListener("change", renderTransactions);
+  if (dom.filterTransactionDate) {
+    dom.filterTransactionDate.addEventListener("change", renderTransactions);
+    dom.filterTransactionDate.addEventListener("input", renderTransactions);
+  }
 
   // Staff Registration
   dom.staffRegisterForm.addEventListener("submit", (e) => {
@@ -593,6 +612,8 @@ function setupEventListeners() {
     const name = dom.addStockName.value.trim();
     const qty = parseInt(dom.addStockQty.value, 10);
     const notes = dom.addStockNotes.value.trim();
+    const location = dom.addStockLocation.value;
+    const ragNumber = dom.addStockRag.value.trim();
     
     if (qty <= 0) {
       showToast("Quantity must be greater than 0.", "warning");
@@ -605,7 +626,13 @@ function setupEventListeners() {
     if (item) {
       // Add stock to existing
       item.quantity += qty;
-      logTransaction("add", item.id, item.name, qty, notes || "Restocked existing item");
+      item.location = location;
+      item.ragNumber = ragNumber;
+      
+      let storageNote = ` | Loc: ${location}`;
+      if (ragNumber) storageNote += `, Rag: ${ragNumber}`;
+      
+      logTransaction("add", item.id, item.name, qty, (notes || "Restocked existing item") + storageNote, ragNumber, location);
       showToast(`Added ${qty} units to "${item.name}".`, "success");
     } else {
       // Create new product
@@ -618,11 +645,17 @@ function setupEventListeners() {
         name,
         category,
         quantity: qty,
-        minStock
+        minStock,
+        location,
+        ragNumber
       };
 
       state.inventory.push(newProduct);
-      logTransaction("add", newId, name, qty, notes || "Created new catalog product");
+      
+      let storageNote = ` | Loc: ${location}`;
+      if (ragNumber) storageNote += `, Rag: ${ragNumber}`;
+
+      logTransaction("add", newId, name, qty, (notes || "Created new catalog product") + storageNote, ragNumber, location);
       showToast(`Created new product "${name}" with ${qty} units.`, "success");
     }
 
@@ -662,7 +695,12 @@ function setupEventListeners() {
     if (type === "damage" && !actionNotes) actionNotes = "Reported damaged stock";
     if (type === "remove" && !actionNotes) actionNotes = "Removed from inventory";
 
-    logTransaction(type, item.id, item.name, qty, actionNotes);
+    const itemLoc = item.location || "Shop";
+    const itemRag = item.ragNumber || "";
+    let storageNote = ` | Loc: ${itemLoc}`;
+    if (itemRag) storageNote += `, Rag: ${itemRag}`;
+
+    logTransaction(type, item.id, item.name, qty, actionNotes + storageNote, itemRag, itemLoc);
     showToast(`Stock updated for "${item.name}".`, "success");
     
     closeModal("modal-stock-action");
@@ -698,7 +736,7 @@ function setupEventListeners() {
 }
 
 // ================= BUSINESS FUNCTIONS =================
-function logTransaction(type, itemId, itemName, qty, notes = "") {
+function logTransaction(type, itemId, itemName, qty, notes = "", ragNumber = "", location = "") {
   const newTx = {
     id: "t" + Date.now(),
     type,
@@ -707,7 +745,9 @@ function logTransaction(type, itemId, itemName, qty, notes = "") {
     quantity: qty,
     user: state.currentUser ? state.currentUser.username : "system",
     timestamp: new Date().toISOString(),
-    notes
+    notes,
+    ragNumber,
+    location
   };
   state.transactions.unshift(newTx);
   saveState("transactions");
@@ -972,6 +1012,8 @@ function renderInventory() {
   });
 
   // Filter list
+  const selectedLocation = dom.filterLocation ? dom.filterLocation.value : "all";
+
   const filteredInventory = state.inventory.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery) || 
                           item.category.toLowerCase().includes(searchQuery);
@@ -982,7 +1024,9 @@ function renderInventory() {
     else if (selectedStatus === "low-stock") matchesStatus = item.quantity > 0 && item.quantity <= item.minStock;
     else if (selectedStatus === "out-of-stock") matchesStatus = item.quantity === 0;
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    const matchesLocation = selectedLocation === "all" || (item.location || "Shop") === selectedLocation;
+
+    return matchesSearch && matchesCategory && matchesStatus && matchesLocation;
   });
 
   // Render Table rows
@@ -1038,11 +1082,17 @@ function renderInventory() {
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><strong>${item.name}</strong></td>
-      <td><span class="text-muted">${item.category}</span></td>
-      <td><strong>${item.quantity}</strong> <span class="text-muted" style="font-size: 11px;">/ ${item.minStock} threshold</span></td>
-      <td><span class="badge ${statusClass}">${statusText}</span></td>
-      <td><div class="table-actions">${actionButtons}</div></td>
+      <td data-label="Product Name">
+        <strong class="product-name-highlight">${item.name}</strong>
+        <div class="product-storage-info">
+          <span class="storage-location-badge location-${(item.location || 'Shop').toLowerCase()}">${item.location || 'Shop'}</span>
+          ${item.ragNumber ? `<span class="storage-rag-badge">Rag: ${item.ragNumber}</span>` : ''}
+        </div>
+      </td>
+      <td data-label="Category"><span class="text-muted">${item.category}</span></td>
+      <td data-label="Quantity"><strong>${item.quantity}</strong> <span class="text-muted" style="font-size: 11px;">/ ${item.minStock} threshold</span></td>
+      <td data-label="Status"><span class="badge ${statusClass}">${statusText}</span></td>
+      <td data-label="Actions" class="table-actions-cell"><div class="table-actions">${actionButtons}</div></td>
     `;
     dom.inventoryTableBody.appendChild(tr);
   });
@@ -1055,13 +1105,37 @@ function renderTransactions() {
 
   const searchQuery = dom.transactionsSearch.value.toLowerCase();
   const selectedType = dom.filterTransactionType.value;
+  const selectedDate = dom.filterTransactionDate ? dom.filterTransactionDate.value : "";
+
+  // If no date is selected, show placeholder prompting the user to pick a date
+  if (!selectedDate) {
+    dom.transactionsTableBody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 40px 0; color: var(--text-muted); font-weight: 500;">
+          Please select a date to view activity logs.
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
   const filteredTxs = state.transactions.filter(tx => {
     const matchesSearch = tx.itemName.toLowerCase().includes(searchQuery) || 
                           tx.user.toLowerCase().includes(searchQuery) ||
                           (tx.notes && tx.notes.toLowerCase().includes(searchQuery));
     const matchesType = selectedType === "all" || tx.type === selectedType;
-    return matchesSearch && matchesType;
+    
+    let matchesDate = true;
+    if (selectedDate) {
+      const dateObj = new Date(tx.timestamp);
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const day = String(dateObj.getDate()).padStart(2, "0");
+      const txLocalDate = `${year}-${month}-${day}`;
+      matchesDate = txLocalDate === selectedDate;
+    }
+    
+    return matchesSearch && matchesType && matchesDate;
   });
 
   dom.transactionsTableBody.innerHTML = "";
@@ -1088,15 +1162,26 @@ function renderTransactions() {
 
     const formattedDate = new Date(tx.timestamp).toLocaleString();
     const tr = document.createElement("tr");
+    
+    const loc = tx.location || "";
+    const rag = tx.ragNumber || "";
+    const hasStorage = loc || rag;
+
     tr.innerHTML = `
-      <td><span class="text-muted">${formattedDate}</span></td>
-      <td>
+      <td data-label="Timestamp"><span class="text-muted">${formattedDate}</span></td>
+      <td data-label="Product">
         <strong>${tx.itemName}</strong>
-        ${tx.notes ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Note: ${tx.notes}</div>` : ""}
+        ${hasStorage ? `
+          <div class="product-storage-info">
+            <span class="storage-location-badge location-${(loc || 'Shop').toLowerCase()}">${loc || 'Shop'}</span>
+            ${rag ? `<span class="storage-rag-badge">Rag: ${rag}</span>` : ''}
+          </div>
+        ` : ''}
+        ${tx.notes ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Note: ${tx.notes}</div>` : ""}
       </td>
-      <td><span class="badge ${badgeClass}">${tx.type}</span></td>
-      <td><strong class="${tx.type === 'sell' ? 'text-success' : tx.type === 'damage' ? 'text-danger' : ''}">${prefix}${tx.quantity}</strong></td>
-      <td><code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">@${tx.user}</code></td>
+      <td data-label="Activity Type"><span class="badge ${badgeClass}">${tx.type}</span></td>
+      <td data-label="Quantity Changed"><strong class="${tx.type === 'sell' ? 'text-success' : tx.type === 'damage' ? 'text-danger' : ''}">${prefix}${tx.quantity}</strong></td>
+      <td data-label="Logged By"><code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">@${tx.user}</code></td>
     `;
     dom.transactionsTableBody.appendChild(tr);
   });
@@ -1123,9 +1208,9 @@ function renderStaff() {
   staffMembers.forEach(member => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td><strong>${member.username}</strong></td>
-      <td><span class="badge badge-cyan">Staff</span></td>
-      <td>
+      <td data-label="Username"><strong>${member.username}</strong></td>
+      <td data-label="Role Badge"><span class="badge badge-cyan">Staff</span></td>
+      <td data-label="Action" class="table-actions-cell">
         <button class="btn btn-danger-outline" style="padding: 4px 10px; font-size: 11px;" onclick="deleteStaffMember('${member.username}')">
           Delete Account
         </button>
@@ -1166,6 +1251,10 @@ window.openStockActionModal = function(itemId, actionType) {
   dom.actionQty.max = item.quantity;
   dom.actionQtyError.classList.add("hidden");
   dom.stockActionSubmitBtn.disabled = false;
+
+  const locVal = item.location || "Shop";
+  const ragVal = item.ragNumber ? ` (Rag: ${item.ragNumber})` : "";
+  if (dom.actionStorageLocation) dom.actionStorageLocation.textContent = `${locVal}${ragVal}`;
 
   // Custom styling based on action
   if (actionType === "sell") {
@@ -1262,7 +1351,7 @@ function exportInventoryToCSV() {
   }
 
   let csvContent = "data:text/csv;charset=utf-8,";
-  csvContent += "Product ID,Product Name,Category,Quantity,Min Threshold\n";
+  csvContent += "Product ID,Product Name,Category,Quantity,Min Threshold,Location,Rag Number\n";
 
   state.inventory.forEach(item => {
     const row = [
@@ -1270,7 +1359,9 @@ function exportInventoryToCSV() {
       `"${item.name.replace(/"/g, '""')}"`,
       `"${item.category.replace(/"/g, '""')}"`,
       item.quantity,
-      item.minStock
+      item.minStock,
+      `"${(item.location || 'Shop').replace(/"/g, '""')}"`,
+      `"${(item.ragNumber || '').replace(/"/g, '""')}"`
     ].join(",");
     csvContent += row + "\n";
   });
