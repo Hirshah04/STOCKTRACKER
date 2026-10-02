@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+
+# Environment variables (Database passwords)
+.env
+
+# Local fallback store
+data_fallback.json

@@ -1,0 +1,17 @@
+{
+  "name": "stocktaker",
+  "version": "1.0.0",
+  "description": "Stock Tracker / Inventory Management Website backed by MongoDB API",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js",
+    "dev": "node api/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.3.0"
+  },
+  "devDependencies": {}
+}
