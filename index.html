@@ -212,6 +212,15 @@
         </button>
       </header>
 
+      <!-- Migration Banner (Appears when local data is detected) -->
+      <div id="migration-banner" class="migration-banner hidden">
+        <div class="migration-banner-text">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          <span><strong>Existing Local Data Found:</strong> Transfer your browser data into the cloud database so it's accessible across all devices.</span>
+        </div>
+        <button id="migrate-btn" class="btn btn-sm btn-primary">Import Data to Database</button>
+      </div>
+
       <!-- Dynamic Page Container -->
       <div class="page-container">
 
@@ -227,7 +236,7 @@
             </div>
           </div>
 
-          <!-- Stats Grid (All Quantities, No Pricing) -->
+          <!-- Stats Grid -->
           <div class="stats-grid">
             <div class="stat-card card-violet">
               <div class="stat-icon-wrapper">
@@ -319,11 +328,21 @@
           <div class="filters-bar">
             <div class="search-box">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              <input type="text" id="inventory-search" placeholder="Search by product name or category...">
+              <input type="text" id="inventory-search" placeholder="Search by name, colour, category...">
             </div>
             <div class="filter-dropdowns">
               <select id="filter-category" class="filter-select">
                 <option value="all">All Categories</option>
+              </select>
+              <select id="filter-colour" class="filter-select">
+                <option value="all">All Colours</option>
+              </select>
+              <select id="filter-unit" class="filter-select">
+                <option value="all">All Units</option>
+                <option value="kg">Kg</option>
+                <option value="litre">Litre</option>
+                <option value="piece">Piece</option>
+                <option value="meter">Meter</option>
               </select>
               <select id="filter-status" class="filter-select">
                 <option value="all">All Statuses</option>
@@ -346,7 +365,8 @@
                 <tr>
                   <th>Product Name</th>
                   <th>Category</th>
-                  <th>Quantity</th>
+                  <th>Colour</th>
+                  <th>Quantity & Unit</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -370,21 +390,42 @@
             </div>
           </div>
 
+          <!-- Period Filter Buttons & Controls Bar -->
+          <div class="activity-controls-bar">
+            <div class="period-filters" id="period-filters">
+              <button class="period-btn active" data-period="all">All</button>
+              <button class="period-btn" data-period="day">Day</button>
+              <button class="period-btn" data-period="week">Week</button>
+              <button class="period-btn" data-period="month">Month</button>
+              <button class="period-btn" data-period="year">Year</button>
+            </div>
+
+            <div class="date-picker-wrapper">
+              <label for="filter-transaction-date" class="date-picker-label">Select Date:</label>
+              <input type="date" id="filter-transaction-date" class="filter-select date-select" title="Filter by Particular Date">
+              <button id="clear-date-btn" class="btn btn-outline btn-icon-only hidden" title="Clear Date Filter">&times;</button>
+            </div>
+
+            <button id="sort-order-btn" class="btn btn-outline sort-btn" data-sort="desc">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4"></path></svg>
+              <span id="sort-order-text">Newest → Oldest</span>
+            </button>
+          </div>
+
           <!-- Filters Bar -->
-          <div class="filters-bar">
+          <div class="filters-bar" style="margin-top: 16px;">
             <div class="search-box">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              <input type="text" id="transactions-search" placeholder="Search by item name, user, or notes...">
+              <input type="text" id="transactions-search" placeholder="Search by name, colour, user, or notes...">
             </div>
             <div class="filter-dropdowns">
               <select id="filter-transaction-type" class="filter-select">
                 <option value="all">All Activities</option>
                 <option value="add">Stock Added</option>
                 <option value="sell">Stock Sold</option>
+                <option value="damage">Stock Marked Defective</option>
                 <option value="remove" class="owner-only">Stock Removed</option>
-                <option value="damage" class="owner-only">Stock Damaged</option>
               </select>
-              <input type="date" id="filter-transaction-date" class="filter-select" title="Filter by Date">
             </div>
           </div>
 
@@ -394,7 +435,7 @@
               <thead>
                 <tr>
                   <th>Timestamp</th>
-                  <th>Product</th>
+                  <th>Product & Colour</th>
                   <th>Activity Type</th>
                   <th>Quantity Changed</th>
                   <th>Logged By</th>
@@ -504,21 +545,49 @@
   <!-- Backdrop for modals -->
   <div id="modal-backdrop" class="modal-backdrop hidden"></div>
 
-  <!-- 1. Add Stock Modal (Simplified: Stock Name and Quantity, Dynamic New Product fields) -->
+  <!-- 1. Add Stock Modal -->
   <div id="modal-add-stock" class="modal hidden">
     <div class="modal-header">
       <h3>Add / Restock Items</h3>
       <button class="modal-close-btn" onclick="closeModal('modal-add-stock')">&times;</button>
     </div>
     <form id="form-add-stock">
-      <div class="modal-body">
+      <div class="modal-body scrollable-modal-body">
         <div class="form-group">
-          <label for="add-stock-name">Product Name*</label>
+          <label for="add-stock-name">Stock Name*</label>
           <div class="input-wrapper">
-            <input type="text" id="add-stock-name" placeholder="Enter product name (e.g. Whole Milk 1L)" required autocomplete="off" list="product-names-datalist">
+            <input type="text" id="add-stock-name" placeholder="e.g. Cotton Shirt, Refined Oil, Wheat Flour" required autocomplete="off" list="product-names-datalist">
             <datalist id="product-names-datalist">
-              <!-- Dynamically populated with existing products -->
+              <!-- Dynamically populated -->
             </datalist>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="add-stock-colour">Colour*</label>
+            <input type="text" id="add-stock-colour" placeholder="e.g. Red, Blue, White, Black" required list="color-suggestions" autocomplete="off">
+            <datalist id="color-suggestions">
+              <option value="Red">
+              <option value="Blue">
+              <option value="Black">
+              <option value="White">
+              <option value="Green">
+              <option value="Yellow">
+              <option value="Navy Blue">
+              <option value="Dark Red">
+              <option value="Light Grey">
+            </datalist>
+          </div>
+
+          <div class="form-group">
+            <label for="add-stock-unit">Unit*</label>
+            <select id="add-stock-unit" required>
+              <option value="piece">Piece</option>
+              <option value="kg">Kg</option>
+              <option value="litre">Litre</option>
+              <option value="meter">Meter</option>
+            </select>
           </div>
         </div>
 
@@ -527,16 +596,16 @@
           <input type="number" id="add-stock-qty" placeholder="Enter quantity" min="1" required>
         </div>
 
-        <!-- Dynamic Fields: Only visible if the typed product name is NEW -->
+        <!-- Dynamic Fields: Only visible if typed product name is NEW -->
         <div id="new-product-fields" class="new-product-fields hidden">
           <div class="new-product-alert">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; margin-right: 8px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-            <span>New product detected! Please specify category and low stock threshold.</span>
+            <span>New product detected! Specify stock category and threshold.</span>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="new-prod-category">Category</label>
-              <input type="text" id="new-prod-category" placeholder="e.g. Snacks" list="category-suggestions">
+              <label for="new-prod-category">Stock Category*</label>
+              <input type="text" id="new-prod-category" placeholder="e.g. Apparel, Groceries, Fabrics" list="category-suggestions">
               <datalist id="category-suggestions">
                 <!-- Dynamically populated -->
               </datalist>
@@ -563,8 +632,8 @@
         </div>
 
         <div class="form-group owner-only">
-          <label for="add-stock-notes">Delivery Notes / Reason (Optional)</label>
-          <input type="text" id="add-stock-notes" placeholder="e.g. Supplier delivery, Weekly restock">
+          <label for="add-stock-notes">Delivery Notes / Supplier (Optional)</label>
+          <input type="text" id="add-stock-notes" placeholder="e.g. Weekly restock from ABC Traders">
         </div>
       </div>
       <div class="modal-footer">
@@ -584,7 +653,7 @@
       <input type="hidden" id="action-item-id">
       <input type="hidden" id="action-type"> <!-- 'sell', 'damage', 'remove' -->
       
-      <div class="modal-body">
+      <div class="modal-body scrollable-modal-body">
         <div class="product-summary-card">
           <div class="summary-row">
             <div>
@@ -592,27 +661,40 @@
               <strong id="action-product-name" class="summary-value">-</strong>
             </div>
             <div>
-              <span class="summary-label">Current Stock:</span>
-              <strong id="action-current-qty" class="summary-value">-</strong>
+              <span class="summary-label">Colour:</span>
+              <strong id="action-product-colour" class="summary-value">-</strong>
             </div>
           </div>
           <div class="summary-row" style="margin-top: 8px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
             <div>
-              <span class="summary-label">Storage Location:</span>
+              <span class="summary-label">Available Stock:</span>
+              <strong id="action-current-qty" class="summary-value text-success">-</strong>
+            </div>
+            <div>
+              <span class="summary-label">Location:</span>
               <strong id="action-storage-location" class="summary-value">-</strong>
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="action-qty" id="action-qty-label">Quantity</label>
-          <input type="number" id="action-qty" min="1" required placeholder="Enter quantity">
-          <span id="action-qty-error" class="form-error hidden">Cannot exceed current stock level.</span>
+        <div class="form-group" style="margin-top: 14px;">
+          <label for="action-qty" id="action-qty-label">Selling Quantity</label>
+          <div class="input-unit-wrapper">
+            <input type="number" id="action-qty" min="1" required placeholder="Enter quantity">
+            <span id="action-qty-unit-label" class="input-unit-badge">Piece</span>
+          </div>
+          <span id="action-qty-error" class="form-error hidden">Cannot exceed available stock level.</span>
         </div>
 
-        <div class="form-group owner-only" id="action-notes-group">
+        <!-- Live Calculation Preview -->
+        <div id="action-remaining-preview" class="action-remaining-preview">
+          <span>Remaining Stock after operation:</span>
+          <strong id="action-remaining-val">0 Piece</strong>
+        </div>
+
+        <div class="form-group owner-only" id="action-notes-group" style="margin-top: 14px;">
           <label for="action-notes">Reason / Notes (Optional)</label>
-          <input type="text" id="action-notes" placeholder="e.g. Broken packaging, customer returned">
+          <input type="text" id="action-notes" placeholder="e.g. Counter sale, broken packaging">
         </div>
       </div>
       <div class="modal-footer">
@@ -623,11 +705,6 @@
   </div>
 
   <!-- Javascript Logic -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-  <script src="config.js"></script>
-  <script src="users.js"></script>
-  <script src="inventory.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

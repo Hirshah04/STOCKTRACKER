@@ -1,210 +1,66 @@
-// ================= STATE & DATA MODELS =================
+// ================= STATE & API CLIENT =================
 let state = {
   currentUser: null,
-  shopInfo: null, // Active shop: { id, name, phone, email, ownerUsername }
-  users: [],      // Global users: { username, password, role, shopId }
-  shops: [],      // Global shops: { id, name, phone, email, ownerUsername }
-  inventory: [],  // Active shop's inventory
-  transactions: [] // Active shop's transactions
+  shopInfo: null,
+  users: [],
+  inventory: [],
+  transactions: [],
+  activePeriod: "all",
+  activeDate: "",
+  sortOrder: "desc", // 'desc' (Newest -> Oldest) or 'asc' (Oldest -> Newest)
+  dbMode: "connecting"
 };
 
-// Note: DEFAULT_USERS and DEFAULT_INVENTORY are now loaded from users.js and inventory.js respectively.
+// API Base URL (Relative path works both locally and on Vercel deployment)
+const API_BASE = "";
 
-const DEFAULT_TRANSACTIONS = []; // Start with empty transactions for new shops
+async function apiFetch(endpoint, options = {}) {
+  try {
+    const defaultHeaders = { 'Content-Type': 'application/json' };
+    const config = {
+      ...options,
+      headers: { ...defaultHeaders, ...(options.headers || {}) }
+    };
+    if (config.body && typeof config.body !== 'string') {
+      config.body = JSON.stringify(config.body);
+    }
 
-let useFirebase = false;
-let db = null;
-let firebaseListeners = [];
+    const response = await fetch(API_BASE + endpoint, config);
+    const result = await response.json();
 
-function isFirebaseConfigured() {
-  return window.FIREBASE_CONFIG && 
-         window.FIREBASE_CONFIG.apiKey && 
-         window.FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY" && 
-         window.FIREBASE_CONFIG.apiKey.trim() !== "" &&
-         window.FIREBASE_CONFIG.projectId !== "YOUR_PROJECT_ID" &&
-         window.FIREBASE_CONFIG.projectId.trim() !== "";
+    if (result.dbMode) {
+      updateDbStatusUI(result.dbMode);
+    }
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || `API Error: ${response.statusText}`);
+    }
+
+    return result;
+  } catch (error) {
+    console.error(`API Fetch Error [${endpoint}]:`, error);
+    throw error;
+  }
 }
 
-// ================= INITIALIZATION =================
-function init() {
-  const savedSession = localStorage.getItem("stocktaker_session");
-  const savedTheme = localStorage.getItem("stocktaker_theme") || "dark-theme";
-
-  // Set theme
-  document.body.className = savedTheme;
-  updateThemeUI(savedTheme);
-
-  // Initialize Connection status UI elements
+function updateDbStatusUI(dbMode) {
   const dbDot = document.getElementById("db-dot");
   const dbStatusText = document.getElementById("db-status-text");
-
-  if (isFirebaseConfigured()) {
-    try {
-      firebase.initializeApp(window.FIREBASE_CONFIG);
-      db = firebase.database();
-      useFirebase = true;
-      
-      if (dbDot) {
-        dbDot.className = "db-dot connected";
-        dbStatusText.textContent = "Cloud Sync Active";
-      }
-      const mobileDbDot = document.getElementById("mobile-db-dot");
-      if (mobileDbDot) {
-        mobileDbDot.className = "db-dot connected";
-      }
-
-      // Establish global real-time listeners for users and shops
-      db.ref("users").on("value", snapshot => {
-        state.users = snapshot.val() || [];
-        renderStaff();
-      });
-
-      db.ref("shops").on("value", snapshot => {
-        state.shops = snapshot.val() || [];
-        if (state.currentUser) {
-          state.shopInfo = state.shops.find(s => s.id === state.currentUser.shopId);
-          updateShopTextUI();
-        }
-      });
-      
-    } catch (e) {
-      console.error("Firebase init failed, falling back to local storage:", e);
-      fallbackToLocalStorage(dbDot, dbStatusText);
-    }
-  } else {
-    fallbackToLocalStorage(dbDot, dbStatusText);
-  }
-
-  // Routing
-  if (savedSession) {
-    state.currentUser = JSON.parse(savedSession);
-    
-    if (useFirebase) {
-      // Connect Firebase shop-specific listeners
-      setupFirebaseShopListeners(state.currentUser.shopId);
-    } else {
-      // Load from local storage
-      state.shopInfo = state.shops.find(s => s.id === state.currentUser.shopId);
-      if (!state.shopInfo) {
-        localStorage.removeItem("stocktaker_session");
-        showAuthScreen();
-        return;
-      }
-      const savedInventory = localStorage.getItem("stocktaker_inventory_" + state.currentUser.shopId);
-      const savedTransactions = localStorage.getItem("stocktaker_transactions_" + state.currentUser.shopId);
-      state.inventory = savedInventory ? JSON.parse(savedInventory) : [];
-      state.transactions = savedTransactions ? JSON.parse(savedTransactions) : [];
-      showAppLayout();
-    }
-  } else {
-    // If not logged in, check if setup is needed
-    // In Firebase mode, wait for the first value check
-    setTimeout(() => {
-      const hasOwner = state.users.some(u => u.role === "owner");
-      if (state.shops.length === 0 || !hasOwner) {
-        showShopSetupScreen();
-      } else {
-        showAuthScreen();
-      }
-    }, useFirebase ? 800 : 50); // Small delay to allow Firebase initial fetch
-  }
-
-  setupEventListeners();
-}
-
-function fallbackToLocalStorage(dbDot, dbStatusText) {
-  useFirebase = false;
-  if (dbDot) {
-    dbDot.className = "db-dot local";
-    dbStatusText.textContent = "Browser Storage (Local)";
-  }
   const mobileDbDot = document.getElementById("mobile-db-dot");
-  if (mobileDbDot) {
-    mobileDbDot.className = "db-dot local";
+
+  state.dbMode = dbMode;
+
+  if (dbDot && dbStatusText) {
+    if (dbMode === "mongodb") {
+      dbDot.className = "db-dot connected";
+      dbStatusText.textContent = "Database Connected (Cloud)";
+    } else {
+      dbDot.className = "db-dot local";
+      dbStatusText.textContent = "Database Connected (Local)";
+    }
   }
-  const savedUsers = localStorage.getItem("stocktaker_users");
-  const savedShops = localStorage.getItem("stocktaker_shops");
-  state.users = savedUsers ? JSON.parse(savedUsers) : [];
-  state.shops = savedShops ? JSON.parse(savedShops) : [];
-}
-
-function setupFirebaseShopListeners(shopId) {
-  // Clear any existing active listeners to prevent multiple bindings
-  clearFirebaseShopListeners();
-
-  const invRef = db.ref("inventory/" + shopId);
-  const txRef = db.ref("transactions/" + shopId);
-
-  // Store refs to detach them on logout
-  firebaseListeners.push({ ref: invRef, type: "value" });
-  firebaseListeners.push({ ref: txRef, type: "value" });
-
-  let firstFetchDone = false;
-
-  invRef.on("value", snapshot => {
-    state.inventory = snapshot.val() || [];
-    renderInventory();
-    renderDashboard();
-
-    if (!firstFetchDone) {
-      firstFetchDone = true;
-      showToast(`Logged in successfully! (Cloud Mode)`, "success");
-      showAppLayout();
-    }
-  });
-
-  txRef.on("value", snapshot => {
-    state.transactions = snapshot.val() || [];
-    renderTransactions();
-    renderDashboard();
-  });
-
-  // Ensure shop profile is loaded
-  state.shopInfo = state.shops.find(s => s.id === shopId);
-  updateShopTextUI();
-}
-
-function clearFirebaseShopListeners() {
-  firebaseListeners.forEach(listener => {
-    listener.ref.off(listener.type);
-  });
-  firebaseListeners = [];
-}
-
-function saveState(key) {
-  const shopId = state.currentUser ? state.currentUser.shopId : null;
-
-  if (useFirebase) {
-    if (key === "users") {
-      db.ref("users").set(state.users);
-    }
-    if (key === "shops") {
-      db.ref("shops").set(state.shops);
-    }
-    if (key === "inventory" && shopId) {
-      db.ref("inventory/" + shopId).set(state.inventory);
-    }
-    if (key === "transactions" && shopId) {
-      db.ref("transactions/" + shopId).set(state.transactions);
-    }
-  } else {
-    // LocalStorage fallback
-    if (key === "users" || !key) {
-      localStorage.setItem("stocktaker_users", JSON.stringify(state.users));
-    }
-    if (key === "shops" || !key) {
-      localStorage.setItem("stocktaker_shops", JSON.stringify(state.shops));
-    }
-    if (key === "inventory" || !key) {
-      if (shopId) {
-        localStorage.setItem("stocktaker_inventory_" + shopId, JSON.stringify(state.inventory));
-      }
-    }
-    if (key === "transactions" || !key) {
-      if (shopId) {
-        localStorage.setItem("stocktaker_transactions_" + shopId, JSON.stringify(state.transactions));
-      }
-    }
+  if (mobileDbDot) {
+    mobileDbDot.className = dbMode === "mongodb" ? "db-dot connected" : "db-dot local";
   }
 }
 
@@ -213,6 +69,8 @@ const dom = {
   authScreen: document.getElementById("auth-screen"),
   shopSetupScreen: document.getElementById("shop-setup-screen"),
   appLayout: document.getElementById("app-layout"),
+  migrationBanner: document.getElementById("migration-banner"),
+  migrateBtn: document.getElementById("migrate-btn"),
   
   // Forms
   loginForm: document.getElementById("login-form"),
@@ -233,7 +91,6 @@ const dom = {
   sidebarShopName: document.getElementById("sidebar-shop-name"),
   sidebarShopEmail: document.getElementById("sidebar-shop-email"),
   mobileShopTitle: document.getElementById("mobile-shop-title"),
-  mobileDbDot: document.getElementById("mobile-db-dot"),
   userAvatar: document.getElementById("user-avatar"),
   userName: document.getElementById("user-name"),
   userBadge: document.getElementById("user-badge"),
@@ -241,9 +98,8 @@ const dom = {
   themeToggle: document.getElementById("theme-toggle"),
   mobileThemeToggle: document.getElementById("mobile-theme-toggle"),
   mobileLogoutBtn: document.getElementById("mobile-logout-btn"),
-  sidebar: document.querySelector(".sidebar"),
   
-  // Tabs
+  // Tabs & Nav
   navLinks: document.querySelectorAll(".nav-link"),
   tabPanels: document.querySelectorAll(".tab-panel"),
   
@@ -262,15 +118,21 @@ const dom = {
   // Inventory Tab
   inventorySearch: document.getElementById("inventory-search"),
   filterCategory: document.getElementById("filter-category"),
+  filterColour: document.getElementById("filter-colour"),
+  filterUnit: document.getElementById("filter-unit"),
   filterStatus: document.getElementById("filter-status"),
   filterLocation: document.getElementById("filter-location"),
   inventoryTableBody: document.getElementById("inventory-table-body"),
   exportBtn: document.getElementById("export-btn"),
   
-  // Transactions Tab
+  // Activity Log Tab
   transactionsSearch: document.getElementById("transactions-search"),
   filterTransactionType: document.getElementById("filter-transaction-type"),
   filterTransactionDate: document.getElementById("filter-transaction-date"),
+  clearDateBtn: document.getElementById("clear-date-btn"),
+  periodFiltersContainer: document.getElementById("period-filters"),
+  sortOrderBtn: document.getElementById("sort-order-btn"),
+  sortOrderText: document.getElementById("sort-order-text"),
   transactionsTableBody: document.getElementById("transactions-table-body"),
   clearLogsBtn: document.getElementById("clear-logs-btn"),
   
@@ -287,6 +149,8 @@ const dom = {
   modalAddStock: document.getElementById("modal-add-stock"),
   formAddStock: document.getElementById("form-add-stock"),
   addStockName: document.getElementById("add-stock-name"),
+  addStockColour: document.getElementById("add-stock-colour"),
+  addStockUnit: document.getElementById("add-stock-unit"),
   addStockQty: document.getElementById("add-stock-qty"),
   addStockNotes: document.getElementById("add-stock-notes"),
   addStockLocation: document.getElementById("add-stock-location"),
@@ -297,24 +161,113 @@ const dom = {
   productNamesDatalist: document.getElementById("product-names-datalist"),
   categorySuggestions: document.getElementById("category-suggestions"),
   
-  // General Stock Action Modal (Sell, Damage, Remove)
+  // Stock Action Modal (Sell, Damage, Remove)
   modalStockAction: document.getElementById("modal-stock-action"),
   formStockAction: document.getElementById("form-stock-action"),
   stockActionTitle: document.getElementById("stock-action-title"),
   actionItemId: document.getElementById("action-item-id"),
   actionType: document.getElementById("action-type"),
   actionProductName: document.getElementById("action-product-name"),
+  actionProductColour: document.getElementById("action-product-colour"),
   actionCurrentQty: document.getElementById("action-current-qty"),
+  actionStorageLocation: document.getElementById("action-storage-location"),
   actionQtyLabel: document.getElementById("action-qty-label"),
   actionQty: document.getElementById("action-qty"),
+  actionQtyUnitLabel: document.getElementById("action-qty-unit-label"),
   actionQtyError: document.getElementById("action-qty-error"),
-  actionStorageLocation: document.getElementById("action-storage-location"),
+  actionRemainingVal: document.getElementById("action-remaining-val"),
   actionNotesGroup: document.getElementById("action-notes-group"),
   actionNotes: document.getElementById("action-notes"),
   stockActionSubmitBtn: document.getElementById("stock-action-submit-btn")
 };
 
-// ================= ROUTING & SCREEN STATE =================
+// ================= INITIALIZATION & ROUTING =================
+async function init() {
+  const savedSession = localStorage.getItem("stocktaker_session");
+  const savedTheme = localStorage.getItem("stocktaker_theme") || "dark-theme";
+
+  document.body.className = savedTheme;
+  updateThemeUI(savedTheme);
+
+  // Check system status
+  try {
+    const res = await apiFetch("/api/status");
+    updateDbStatusUI(res.data.dbConnected ? "mongodb" : "local_fallback");
+  } catch (e) {
+    updateDbStatusUI("local_fallback");
+  }
+
+  setupEventListeners();
+  checkLocalStorageMigrationNeed();
+
+  if (savedSession) {
+    try {
+      state.currentUser = JSON.parse(savedSession);
+      await loadShopData();
+      showAppLayout();
+    } catch (e) {
+      console.error("Failed to load session:", e);
+      localStorage.removeItem("stocktaker_session");
+      showAuthScreen();
+    }
+  } else {
+    showAuthScreen();
+  }
+}
+
+async function loadShopData() {
+  if (!state.currentUser || !state.currentUser.shopId) return;
+
+  const shopId = state.currentUser.shopId;
+
+  try {
+    // 1. Fetch Shop details
+    try {
+      const shopRes = await apiFetch(`/api/shops/${shopId}`);
+      state.shopInfo = shopRes.data;
+    } catch (e) {
+      state.shopInfo = { id: shopId, name: "My Shop", phone: "", email: "" };
+    }
+
+    // 2. Fetch Stocks
+    const stocksRes = await apiFetch(`/api/stocks?shopId=${shopId}`);
+    state.inventory = stocksRes.data || [];
+
+    // 3. Fetch Activities
+    await fetchActivities();
+
+    // 4. Fetch Staff if Owner
+    if (state.currentUser.role === "owner") {
+      try {
+        const usersRes = await apiFetch(`/api/users?shopId=${shopId}`);
+        state.users = usersRes.data || [];
+      } catch (e) {
+        state.users = [];
+      }
+    }
+
+    renderAll();
+  } catch (e) {
+    showToast("Failed to load data from database. " + e.message, "danger");
+  }
+}
+
+async function fetchActivities() {
+  if (!state.currentUser) return;
+  const shopId = state.currentUser.shopId;
+
+  let query = `?shopId=${shopId}&sort=${state.sortOrder}`;
+  if (state.activeDate) {
+    query += `&date=${state.activeDate}`;
+  } else if (state.activePeriod && state.activePeriod !== "all") {
+    query += `&period=${state.activePeriod}`;
+  }
+
+  const actRes = await apiFetch(`/api/activities${query}`);
+  state.transactions = actRes.data || [];
+}
+
+// ================= SCREEN ROUTING =================
 function showAuthScreen() {
   dom.authScreen.classList.remove("hidden");
   dom.shopSetupScreen.classList.add("hidden");
@@ -338,7 +291,6 @@ function showAppLayout() {
 
   updateShopTextUI();
 
-  // Update Profile Info
   const user = state.currentUser;
   dom.userName.textContent = user.username.toUpperCase();
   dom.userAvatar.textContent = user.username.charAt(0).toUpperCase();
@@ -347,26 +299,24 @@ function showAppLayout() {
 
   applyRolePermissions(user.role);
   switchTab("dashboard");
-  renderAll();
 }
 
 function updateShopTextUI() {
   const shopName = state.shopInfo ? state.shopInfo.name : "My Shop";
   const shopEmail = state.shopInfo ? state.shopInfo.email : "Not Registered";
-  
+
   dom.sidebarShopName.textContent = shopName;
   dom.sidebarShopEmail.textContent = shopEmail;
   dom.mobileShopTitle.textContent = shopName;
   if (dom.dashboardShopSubtitle) {
-    dom.dashboardShopSubtitle.textContent = state.shopInfo 
-      ? `Inventory summary for ${state.shopInfo.name} (Contact: ${state.shopInfo.phone})`
+    dom.dashboardShopSubtitle.textContent = state.shopInfo
+      ? `Inventory summary for ${state.shopInfo.name} (${state.shopInfo.phone || 'No phone'})`
       : "Inventory summary for your shop.";
   }
 }
 
 function applyRolePermissions(role) {
   const ownerElements = document.querySelectorAll(".owner-only");
-  
   if (role === "owner") {
     ownerElements.forEach(el => el.classList.remove("hidden"));
     if (dom.clearLogsBtn) dom.clearLogsBtn.style.display = "inline-flex";
@@ -379,59 +329,38 @@ function applyRolePermissions(role) {
 // ================= CORE EVENT LISTENERS =================
 function setupEventListeners() {
   // Login Form
-  dom.loginForm.addEventListener("submit", (e) => {
+  dom.loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const username = dom.loginUsername.value.trim().toLowerCase();
     const password = dom.loginPassword.value;
-    
-    const user = state.users.find(u => u.username === username && u.password === password);
-    
-    if (user) {
-      state.currentUser = { username: user.username, role: user.role, shopId: user.shopId };
-      localStorage.setItem("stocktaker_session", JSON.stringify(state.currentUser));
-      
-      // Load active shop details
-      state.shopInfo = state.shops.find(s => s.id === user.shopId);
-      
-      if (useFirebase) {
-        setupFirebaseShopListeners(user.shopId);
-      } else {
-        // Load inventory and transactions locally
-        const savedInventory = localStorage.getItem("stocktaker_inventory_" + user.shopId);
-        const savedTransactions = localStorage.getItem("stocktaker_transactions_" + user.shopId);
-        
-        state.inventory = savedInventory ? JSON.parse(savedInventory) : [];
-        state.transactions = savedTransactions ? JSON.parse(savedTransactions) : [];
 
-        showToast(`Logged in successfully!`, "success");
-        showAppLayout();
-      }
-    } else {
-      showToast("Invalid username or password.", "danger");
+    try {
+      const res = await apiFetch("/api/auth/login", {
+        method: "POST",
+        body: { username, password }
+      });
+
+      state.currentUser = res.data.user;
+      localStorage.setItem("stocktaker_session", JSON.stringify(state.currentUser));
+
+      await loadShopData();
+      showToast(`Welcome back, ${state.currentUser.username.toUpperCase()}!`, "success");
+      showAppLayout();
+    } catch (err) {
+      showToast(err.message || "Invalid username or password.", "danger");
     }
   });
 
-  // Toggle between Login and Registration Screens
+  // Toggle Auth / Setup Screens
   const goToRegister = document.getElementById("go-to-register");
   const goToLogin = document.getElementById("go-to-login");
+  if (goToRegister) goToRegister.addEventListener("click", (e) => { e.preventDefault(); showShopSetupScreen(); });
+  if (goToLogin) goToLogin.addEventListener("click", (e) => { e.preventDefault(); showAuthScreen(); });
 
-  if (goToRegister) {
-    goToRegister.addEventListener("click", (e) => {
-      e.preventDefault();
-      showShopSetupScreen();
-    });
-  }
-  if (goToLogin) {
-    goToLogin.addEventListener("click", (e) => {
-      e.preventDefault();
-      showAuthScreen();
-    });
-  }
-
-  // Shop Setup Form (First Time Registration)
-  dom.shopSetupForm.addEventListener("submit", (e) => {
+  // Shop Setup Form
+  dom.shopSetupForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const name = dom.setupShopName.value.trim();
+    const shopName = dom.setupShopName.value.trim();
     const phone = dom.setupShopPhone.value.trim();
     const email = dom.setupShopEmail.value.trim();
     const ownerUsername = document.getElementById("setup-owner-username").value.trim().toLowerCase();
@@ -442,50 +371,21 @@ function setupEventListeners() {
       return;
     }
 
-    if (state.users.some(u => u.username === ownerUsername)) {
-      showToast("Username already taken. Please choose another.", "danger");
-      return;
+    try {
+      await apiFetch("/api/auth/register", {
+        method: "POST",
+        body: { shopName, phone, email, ownerUsername, ownerPassword }
+      });
+
+      showToast("Shop registered successfully! Please sign in.", "success");
+      showAuthScreen();
+    } catch (err) {
+      showToast(err.message || "Registration failed.", "danger");
     }
-
-    // Generate unique shop ID
-    const shopId = "shop_" + Date.now();
-
-    // Set shop info
-    const newShop = { id: shopId, name, phone, email, ownerUsername };
-    state.shops.push(newShop);
-
-    // Add new owner account
-    state.users.push({
-      username: ownerUsername,
-      password: ownerPassword,
-      role: "owner",
-      shopId: shopId
-    });
-
-    const initialInventory = typeof DEFAULT_INVENTORY !== 'undefined' ? [...DEFAULT_INVENTORY] : [];
-
-    if (useFirebase) {
-      // Seed default inventory in the cloud database
-      db.ref("inventory/" + shopId).set(initialInventory);
-      db.ref("transactions/" + shopId).set([]);
-      
-      // Save global lists to Firebase
-      db.ref("shops").set(state.shops);
-      db.ref("users").set(state.users);
-    } else {
-      // LocalStorage mode
-      localStorage.setItem("stocktaker_inventory_" + shopId, JSON.stringify(initialInventory));
-      localStorage.setItem("stocktaker_transactions_" + shopId, JSON.stringify([]));
-      saveState("shops");
-      saveState("users");
-    }
-
-    showToast("Shop & Owner registered successfully! Please sign in.", "success");
-    showAuthScreen();
   });
 
-  // Shop Edit Form (Settings Tab)
-  dom.shopEditForm.addEventListener("submit", (e) => {
+  // Edit Shop Profile
+  dom.shopEditForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!state.currentUser || !state.shopInfo) return;
 
@@ -493,31 +393,29 @@ function setupEventListeners() {
     const phone = dom.editShopPhone.value.trim();
     const email = dom.editShopEmail.value.trim();
 
-    // Update active shop info
-    state.shopInfo.name = name;
-    state.shopInfo.phone = phone;
-    state.shopInfo.email = email;
+    try {
+      const res = await apiFetch(`/api/shops/${state.currentUser.shopId}`, {
+        method: "PUT",
+        body: { name, phone, email }
+      });
 
-    // Update in global shops list
-    state.shops = state.shops.map(s => s.id === state.shopInfo.id ? state.shopInfo : s);
-    
-    saveState("shops");
-    showToast("Shop profile updated successfully!", "success");
-    showAppLayout();
+      state.shopInfo = res.data;
+      updateShopTextUI();
+      showToast("Shop profile updated successfully!", "success");
+    } catch (err) {
+      showToast("Failed to update profile: " + err.message, "danger");
+    }
   });
 
-  // Logout Actions (Desktop & Mobile)
+  // Logout Handlers
   const handleLogout = () => {
     showToast("Logged out successfully.", "info");
-    if (useFirebase) {
-      clearFirebaseShopListeners();
-    }
     showAuthScreen();
   };
   if (dom.logoutBtn) dom.logoutBtn.addEventListener("click", handleLogout);
   if (dom.mobileLogoutBtn) dom.mobileLogoutBtn.addEventListener("click", handleLogout);
 
-  // Sidebar / Mobile Bottom Tab Navigation
+  // Sidebar / Mobile Navigation
   dom.navLinks.forEach(link => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
@@ -542,25 +440,92 @@ function setupEventListeners() {
   document.addEventListener("click", (e) => {
     if (e.target.matches("[data-tab-link]")) {
       e.preventDefault();
-      const tab = e.target.getAttribute("data-tab-link");
-      switchTab(tab);
+      switchTab(e.target.getAttribute("data-tab-link"));
     }
   });
 
-  // Search & Filters
+  // Catalog Filters & Search
   dom.inventorySearch.addEventListener("input", renderInventory);
   dom.filterCategory.addEventListener("change", renderInventory);
+  dom.filterColour.addEventListener("change", renderInventory);
+  dom.filterUnit.addEventListener("change", renderInventory);
   dom.filterStatus.addEventListener("change", renderInventory);
   if (dom.filterLocation) dom.filterLocation.addEventListener("change", renderInventory);
+
+  // Activity Log Search & Filters
   dom.transactionsSearch.addEventListener("input", renderTransactions);
-  dom.filterTransactionType.addEventListener("change", renderTransactions);
-  if (dom.filterTransactionDate) {
-    dom.filterTransactionDate.addEventListener("change", renderTransactions);
-    dom.filterTransactionDate.addEventListener("input", renderTransactions);
+  dom.filterTransactionType.addEventListener("change", async () => {
+    renderTransactions();
+  });
+
+  // Period Filter Buttons (All, Day, Week, Month, Year)
+  if (dom.periodFiltersContainer) {
+    dom.periodFiltersContainer.querySelectorAll(".period-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        dom.periodFiltersContainer.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        state.activePeriod = btn.getAttribute("data-period");
+        state.activeDate = ""; // Clear specific date picker if period pill clicked
+        if (dom.filterTransactionDate) dom.filterTransactionDate.value = "";
+        if (dom.clearDateBtn) dom.clearDateBtn.classList.add("hidden");
+
+        await fetchActivities();
+        renderTransactions();
+      });
+    });
   }
 
-  // Staff Registration
-  dom.staffRegisterForm.addEventListener("submit", (e) => {
+  // Date Picker Filter
+  if (dom.filterTransactionDate) {
+    dom.filterTransactionDate.addEventListener("change", async () => {
+      const selectedVal = dom.filterTransactionDate.value;
+      if (selectedVal) {
+        state.activeDate = selectedVal;
+        if (dom.clearDateBtn) dom.clearDateBtn.classList.remove("hidden");
+        // Deactivate period pills
+        if (dom.periodFiltersContainer) {
+          dom.periodFiltersContainer.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
+        }
+      } else {
+        state.activeDate = "";
+        if (dom.clearDateBtn) dom.clearDateBtn.classList.add("hidden");
+      }
+      await fetchActivities();
+      renderTransactions();
+    });
+  }
+
+  if (dom.clearDateBtn) {
+    dom.clearDateBtn.addEventListener("click", async () => {
+      dom.filterTransactionDate.value = "";
+      state.activeDate = "";
+      dom.clearDateBtn.classList.add("hidden");
+      // Re-activate 'All' period
+      if (dom.periodFiltersContainer) {
+        dom.periodFiltersContainer.querySelectorAll(".period-btn").forEach(b => {
+          if (b.getAttribute("data-period") === "all") b.classList.add("active");
+          else b.classList.remove("active");
+        });
+      }
+      state.activePeriod = "all";
+      await fetchActivities();
+      renderTransactions();
+    });
+  }
+
+  // Activity Log Sort Toggle (Newest <-> Oldest)
+  if (dom.sortOrderBtn) {
+    dom.sortOrderBtn.addEventListener("click", async () => {
+      state.sortOrder = state.sortOrder === "desc" ? "asc" : "desc";
+      dom.sortOrderText.textContent = state.sortOrder === "desc" ? "Newest → Oldest" : "Oldest → Newest";
+      await fetchActivities();
+      renderTransactions();
+    });
+  }
+
+  // Staff Account Creation
+  dom.staffRegisterForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!state.currentUser) return;
 
@@ -571,29 +536,25 @@ function setupEventListeners() {
       showToast("Username must be at least 3 characters.", "warning");
       return;
     }
-    if (state.users.some(u => u.username === username)) {
-      showToast("Username already exists.", "danger");
-      return;
-    }
 
-    // Link staff member to the current shop
-    state.users.push({
-      username,
-      password,
-      role: "staff",
-      shopId: state.currentUser.shopId
-    });
-    
-    saveState("users");
-    showToast(`Staff account "${username}" created!`, "success");
-    dom.staffRegisterForm.reset();
-    renderStaff();
+    try {
+      await apiFetch("/api/users", {
+        method: "POST",
+        body: { username, password, shopId: state.currentUser.shopId }
+      });
+
+      showToast(`Staff account "${username}" created!`, "success");
+      dom.staffRegisterForm.reset();
+      await loadShopData();
+    } catch (err) {
+      showToast(err.message || "Failed to create staff account.", "danger");
+    }
   });
 
-  // Backdrop close modal
+  // Modal Backdrop Close
   dom.modalBackdrop.addEventListener("click", closeAllModals);
 
-  // --- ADD STOCK MODAL LOGIC (Datalist Autocomplete & Dynamic Fields) ---
+  // Add Stock Datalist Autocomplete
   dom.addStockName.addEventListener("input", () => {
     const typedName = dom.addStockName.value.trim().toLowerCase();
     const productExists = state.inventory.some(item => item.name.toLowerCase() === typedName);
@@ -607,74 +568,62 @@ function setupEventListeners() {
     }
   });
 
-  dom.formAddStock.addEventListener("submit", (e) => {
+  // Submit Add Stock Form
+  dom.formAddStock.addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = dom.addStockName.value.trim();
+    const colour = dom.addStockColour.value.trim() || "N/A";
+    const unit = dom.addStockUnit.value.toLowerCase();
     const qty = parseInt(dom.addStockQty.value, 10);
     const notes = dom.addStockNotes.value.trim();
     const location = dom.addStockLocation.value;
     const ragNumber = dom.addStockRag.value.trim();
-    
+    const category = dom.newProdCategory.value.trim() || "General";
+    const minStock = parseInt(dom.newProdMin.value, 10) || 5;
+
     if (qty <= 0) {
       showToast("Quantity must be greater than 0.", "warning");
       return;
     }
 
-    // Check if product already exists
-    let item = state.inventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+    try {
+      const res = await apiFetch("/api/stocks", {
+        method: "POST",
+        body: {
+          shopId: state.currentUser.shopId,
+          name,
+          category,
+          colour,
+          quantity: qty,
+          unit,
+          location,
+          ragNumber,
+          minStock,
+          notes,
+          user: state.currentUser.username
+        }
+      });
 
-    if (item) {
-      // Add stock to existing
-      item.quantity += qty;
-      item.location = location;
-      item.ragNumber = ragNumber;
-      
-      let storageNote = ` | Loc: ${location}`;
-      if (ragNumber) storageNote += `, Rag: ${ragNumber}`;
-      
-      logTransaction("add", item.id, item.name, qty, (notes || "Restocked existing item") + storageNote, ragNumber, location);
-      showToast(`Added ${qty} units to "${item.name}".`, "success");
-    } else {
-      // Create new product
-      const category = dom.newProdCategory.value.trim() || "General";
-      const minStock = parseInt(dom.newProdMin.value, 10) || 5;
+      showToast(res.message || `Added ${qty} ${unit.toUpperCase()} of "${name}".`, "success");
+      closeModal("modal-add-stock");
+      dom.formAddStock.reset();
+      dom.newProductFields.classList.add("hidden");
 
-      const newId = "p" + Date.now();
-      const newProduct = {
-        id: newId,
-        name,
-        category,
-        quantity: qty,
-        minStock,
-        location,
-        ragNumber
-      };
-
-      state.inventory.push(newProduct);
-      
-      let storageNote = ` | Loc: ${location}`;
-      if (ragNumber) storageNote += `, Rag: ${ragNumber}`;
-
-      logTransaction("add", newId, name, qty, (notes || "Created new catalog product") + storageNote, ragNumber, location);
-      showToast(`Created new product "${name}" with ${qty} units.`, "success");
+      await loadShopData();
+    } catch (err) {
+      showToast(err.message || "Failed to add stock.", "danger");
     }
-
-    saveState("inventory");
-    closeModal("modal-add-stock");
-    dom.formAddStock.reset();
-    dom.newProductFields.classList.add("hidden");
-    renderAll();
   });
 
-  // --- GENERAL STOCK ACTIONS (Sell, Damage, Remove) ---
-  dom.formStockAction.addEventListener("submit", (e) => {
+  // Submit Stock Action Form (Sell, Damage, Remove)
+  dom.formStockAction.addEventListener("submit", async (e) => {
     e.preventDefault();
     const itemId = dom.actionItemId.value;
     const type = dom.actionType.value;
     const qty = parseInt(dom.actionQty.value, 10);
     const notes = dom.actionNotes.value.trim();
 
-    const item = state.inventory.find(i => i.id === itemId);
+    const item = state.inventory.find(i => i.id === itemId || i.stockId === itemId);
     if (!item) return;
 
     if (qty <= 0) {
@@ -682,42 +631,51 @@ function setupEventListeners() {
       return;
     }
     if (qty > item.quantity) {
-      showToast("Insufficient stock level.", "danger");
+      showToast(`Cannot exceed available stock level (${item.quantity} ${item.unit.toUpperCase()}).`, "danger");
       return;
     }
 
-    // Process reduction
-    item.quantity -= qty;
-    saveState("inventory");
+    try {
+      let endpoint = `/api/stocks/${item.id || item.stockId}/sell`;
+      if (type === "damage") endpoint = `/api/stocks/${item.id || item.stockId}/defective`;
+      else if (type === "remove") endpoint = `/api/stocks/${item.id || item.stockId}/defective`;
 
-    let actionNotes = notes;
-    if (type === "sell" && !actionNotes) actionNotes = "Counter sale";
-    if (type === "damage" && !actionNotes) actionNotes = "Reported damaged stock";
-    if (type === "remove" && !actionNotes) actionNotes = "Removed from inventory";
+      const res = await apiFetch(endpoint, {
+        method: "POST",
+        body: {
+          quantity: qty,
+          notes,
+          user: state.currentUser.username
+        }
+      });
 
-    const itemLoc = item.location || "Shop";
-    const itemRag = item.ragNumber || "";
-    let storageNote = ` | Loc: ${itemLoc}`;
-    if (itemRag) storageNote += `, Rag: ${itemRag}`;
+      showToast(res.message || `Stock action recorded for "${item.name}".`, "success");
+      closeModal("modal-stock-action");
+      dom.formStockAction.reset();
 
-    logTransaction(type, item.id, item.name, qty, actionNotes + storageNote, itemRag, itemLoc);
-    showToast(`Stock updated for "${item.name}".`, "success");
-    
-    closeModal("modal-stock-action");
-    dom.formStockAction.reset();
-    renderAll();
+      await loadShopData();
+    } catch (err) {
+      showToast(err.message || "Failed to process stock action.", "danger");
+    }
   });
 
+  // Live Quantity Preview inside Sell/Damage Modal
   dom.actionQty.addEventListener("input", () => {
-    const qty = parseInt(dom.actionQty.value, 10);
-    const currentQty = parseInt(dom.actionCurrentQty.textContent, 10);
+    const qty = parseInt(dom.actionQty.value, 10) || 0;
+    const currentQty = parseInt(dom.actionCurrentQty.textContent, 10) || 0;
+    const unitText = dom.actionQtyUnitLabel.textContent || "Piece";
 
     if (qty > currentQty) {
       dom.actionQtyError.classList.remove("hidden");
       dom.stockActionSubmitBtn.disabled = true;
+      dom.actionRemainingVal.textContent = `0 ${unitText}`;
+      dom.actionRemainingVal.className = "text-danger";
     } else {
       dom.actionQtyError.classList.add("hidden");
       dom.stockActionSubmitBtn.disabled = false;
+      const remaining = Math.max(0, currentQty - qty);
+      dom.actionRemainingVal.textContent = `${remaining} ${unitText}`;
+      dom.actionRemainingVal.className = "text-success";
     }
   });
 
@@ -726,81 +684,125 @@ function setupEventListeners() {
 
   // Clear Logs
   dom.clearLogsBtn.addEventListener("click", () => {
-    if (confirm("Are you sure you want to clear all activity logs? This cannot be undone.")) {
+    if (confirm("Are you sure you want to clear all activity logs?")) {
       state.transactions = [];
-      saveState("transactions");
-      showToast("Activity logs cleared.", "info");
-      renderAll();
+      renderTransactions();
+      showToast("Activity logs cleared locally.", "info");
     }
   });
+
+  // Local Storage Data Migration Button Handler
+  if (dom.migrateBtn) {
+    dom.migrateBtn.addEventListener("click", async () => {
+      try {
+        const localShops = JSON.parse(localStorage.getItem("stocktaker_shops") || "[]");
+        const localUsers = JSON.parse(localStorage.getItem("stocktaker_users") || "[]");
+        let localInventory = [];
+        let localTransactions = [];
+
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key.startsWith("stocktaker_inventory_")) {
+            const items = JSON.parse(localStorage.getItem(key) || "[]");
+            const sId = key.replace("stocktaker_inventory_", "");
+            items.forEach(it => { if (!it.shopId) it.shopId = sId; });
+            localInventory = localInventory.concat(items);
+          }
+          if (key.startsWith("stocktaker_transactions_")) {
+            const txs = JSON.parse(localStorage.getItem(key) || "[]");
+            const sId = key.replace("stocktaker_transactions_", "");
+            txs.forEach(t => { if (!t.shopId) t.shopId = sId; });
+            localTransactions = localTransactions.concat(txs);
+          }
+        }
+
+        const res = await apiFetch("/api/migrate", {
+          method: "POST",
+          body: {
+            shops: localShops,
+            users: localUsers,
+            inventory: localInventory,
+            transactions: localTransactions,
+            shopId: state.currentUser ? state.currentUser.shopId : null
+          }
+        });
+
+        showToast(res.message || "LocalStorage data migrated to database!", "success");
+        if (dom.migrationBanner) dom.migrationBanner.classList.add("hidden");
+        await loadShopData();
+      } catch (err) {
+        showToast("Migration failed: " + err.message, "danger");
+      }
+    });
+  }
+}
+
+function checkLocalStorageMigrationNeed() {
+  const hasLocalShops = localStorage.getItem("stocktaker_shops");
+  const hasLocalUsers = localStorage.getItem("stocktaker_users");
+  let hasLocalInv = false;
+
+  for (let i = 0; i < localStorage.length; i++) {
+    if (localStorage.key(i).startsWith("stocktaker_inventory_")) {
+      hasLocalInv = true;
+      break;
+    }
+  }
+
+  if ((hasLocalShops || hasLocalUsers || hasLocalInv) && dom.migrationBanner) {
+    dom.migrationBanner.classList.remove("hidden");
+  }
 }
 
 // ================= BUSINESS FUNCTIONS =================
-function logTransaction(type, itemId, itemName, qty, notes = "", ragNumber = "", location = "") {
-  const newTx = {
-    id: "t" + Date.now(),
-    type,
-    itemId,
-    itemName,
-    quantity: qty,
-    user: state.currentUser ? state.currentUser.username : "system",
-    timestamp: new Date().toISOString(),
-    notes,
-    ragNumber,
-    location
-  };
-  state.transactions.unshift(newTx);
-  saveState("transactions");
-}
-
-window.deleteProduct = function(id) {
-  const item = state.inventory.find(i => i.id === id);
+window.deleteProduct = async function(id) {
+  const item = state.inventory.find(i => i.id === id || i.stockId === id);
   if (!item) return;
 
   if (confirm(`Delete "${item.name}" from the catalog? This removes the item entirely.`)) {
-    state.inventory = state.inventory.filter(i => i.id !== id);
-    saveState("inventory");
-    showToast(`"${item.name}" deleted.`, "info");
-    renderAll();
+    try {
+      await apiFetch(`/api/stocks/${item.id || item.stockId}?user=${state.currentUser.username}`, {
+        method: "DELETE"
+      });
+      showToast(`"${item.name}" deleted successfully.`, "info");
+      await loadShopData();
+    } catch (err) {
+      showToast("Failed to delete product: " + err.message, "danger");
+    }
   }
 };
 
-window.deleteStaffMember = function(username) {
+window.deleteStaffMember = async function(username) {
   if (username === "owner") return;
   if (confirm(`Remove staff account "@${username}"?`)) {
-    state.users = state.users.filter(u => u.username !== username);
-    saveState("users");
-    showToast(`Staff member "${username}" removed.`, "info");
-    renderStaff();
+    try {
+      await apiFetch(`/api/users/${username}`, { method: "DELETE" });
+      showToast(`Staff member "${username}" removed.`, "info");
+      await loadShopData();
+    } catch (err) {
+      showToast("Failed to delete staff member: " + err.message, "danger");
+    }
   }
 };
 
 // ================= TAB MANAGEMENT =================
 function switchTab(tabName) {
   dom.navLinks.forEach(link => {
-    if (link.getAttribute("data-tab") === tabName) {
-      link.classList.add("active");
-    } else {
-      link.classList.remove("active");
-    }
+    if (link.getAttribute("data-tab") === tabName) link.classList.add("active");
+    else link.classList.remove("active");
   });
 
   dom.tabPanels.forEach(panel => {
-    if (panel.id === `tab-${tabName}`) {
-      panel.classList.remove("hidden");
-    } else {
-      panel.classList.add("hidden");
-    }
+    if (panel.id === `tab-${tabName}`) panel.classList.remove("hidden");
+    else panel.classList.add("hidden");
   });
 
-  // Populate Shop Info Form in settings
   if (tabName === "settings" && state.shopInfo) {
-    dom.editShopName.value = state.shopInfo.name;
-    dom.editShopPhone.value = state.shopInfo.phone;
-    dom.editShopEmail.value = state.shopInfo.email;
+    dom.editShopName.value = state.shopInfo.name || "";
+    dom.editShopPhone.value = state.shopInfo.phone || "";
+    dom.editShopEmail.value = state.shopInfo.email || "";
   }
 
-  // Refresh active panel data
   if (tabName === "dashboard") renderDashboard();
   else if (tabName === "inventory") renderInventory();
   else if (tabName === "transactions") renderTransactions();
@@ -838,28 +840,25 @@ function renderDashboard() {
 
   dom.welcomeName.textContent = user.username.toUpperCase();
 
-  // Statistics calculations (quantity-only)
   const uniqueItemsCount = state.inventory.length;
   const totalStockQuantity = state.inventory.reduce((sum, item) => sum + item.quantity, 0);
 
-  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const todayStr = new Date().toISOString().split("T")[0];
   const todaySoldQty = state.transactions
-    .filter(t => t.type === "sell" && t.timestamp.startsWith(today))
-    .reduce((sum, t) => sum + t.quantity, 0);
+    .filter(t => t.type === "sell" && t.timestamp && String(t.timestamp).startsWith(todayStr))
+    .reduce((sum, t) => sum + (t.quantity || 0), 0);
 
   const lowStockItems = state.inventory.filter(item => item.quantity <= item.minStock);
   const lowStockCount = lowStockItems.length;
 
-  // Update Stats DOM
   dom.statTotalItems.textContent = uniqueItemsCount;
   dom.statTotalQty.textContent = totalStockQuantity;
   dom.statTotalSales.textContent = todaySoldQty;
   dom.statLowStock.textContent = lowStockCount;
 
-  // Low Stock Warnings
   dom.lowStockCountBadge.textContent = `${lowStockCount} Item${lowStockCount !== 1 ? 's' : ''}`;
   dom.lowStockList.innerHTML = "";
-  
+
   if (lowStockCount === 0) {
     dom.lowStockList.innerHTML = `
       <div class="empty-state">
@@ -870,20 +869,20 @@ function renderDashboard() {
   } else {
     lowStockItems.forEach(item => {
       const isOut = item.quantity === 0;
-      const badgeClass = isOut ? "badge-rose" : "badge-rose"; // Consistent warning color
-      const statusText = isOut ? "Out of Stock" : "Low Stock";
-      
+      const badgeClass = "badge-rose";
+      const unitText = (item.unit || "piece").toUpperCase();
+
       const div = document.createElement("div");
       div.className = "list-item";
       div.innerHTML = `
         <div class="item-main">
           <div class="item-info">
-            <span class="item-title">${item.name}</span>
+            <span class="item-title">${item.name} <span class="colour-pill"><span class="colour-dot"></span>${item.colour || 'N/A'}</span></span>
             <span class="item-subtitle">${item.category}</span>
           </div>
         </div>
         <div class="item-meta">
-          <span class="badge ${badgeClass}">${item.quantity} / ${item.minStock} Left</span>
+          <span class="badge ${badgeClass}">${item.quantity} ${unitText} / ${item.minStock} Left</span>
         </div>
       `;
       dom.lowStockList.appendChild(div);
@@ -905,26 +904,27 @@ function renderDashboard() {
     recentTxs.forEach(tx => {
       let badgeClass = "badge-cyan";
       let prefix = "";
-      
+
       if (tx.type === "sell") { badgeClass = "badge-emerald"; prefix = "-"; }
       else if (tx.type === "add") { badgeClass = "badge-violet"; prefix = "+"; }
       else if (tx.type === "damage") { badgeClass = "badge-rose"; prefix = "-"; }
       else if (tx.type === "remove") { badgeClass = "badge-rose"; prefix = "-"; }
 
       const timeAgo = formatTimeAgo(new Date(tx.timestamp));
+      const unitText = (tx.unit || "piece").toUpperCase();
 
       const div = document.createElement("div");
       div.className = "list-item";
       div.innerHTML = `
         <div class="item-main">
           <div class="item-info">
-            <span class="item-title">${tx.itemName}</span>
+            <span class="item-title">${tx.itemName} <span class="colour-pill"><span class="colour-dot"></span>${tx.colour || 'N/A'}</span></span>
             <span class="item-subtitle">${timeAgo} by @${tx.user}</span>
           </div>
         </div>
         <div class="item-meta">
           <strong class="item-amount ${tx.type === 'sell' ? 'text-success' : tx.type === 'damage' ? 'text-danger' : ''}">
-            ${prefix}${tx.quantity}
+            ${prefix}${tx.quantity} ${unitText}
           </strong>
           <div><span class="badge ${badgeClass}">${tx.type}</span></div>
         </div>
@@ -933,7 +933,7 @@ function renderDashboard() {
     });
   }
 
-  // Quick Action Buttons
+  // Quick Action Bar
   dom.quickActionsBar.innerHTML = "";
   if (user.role === "owner") {
     dom.quickActionsBar.innerHTML = `
@@ -970,8 +970,7 @@ window.triggerQuickAction = function(actionType) {
     openAddStockModal();
     return;
   }
-  // Open the action modal for the first item in the inventory as a shortcut
-  openStockActionModal(state.inventory[0].id, actionType);
+  openStockActionModal(state.inventory[0].id || state.inventory[0].stockId, actionType);
 };
 
 // 2. Inventory Tab
@@ -979,14 +978,18 @@ function renderInventory() {
   const user = state.currentUser;
   if (!user) return;
 
-  const searchQuery = dom.inventorySearch.value.toLowerCase();
+  const searchQuery = dom.inventorySearch.value.toLowerCase().trim();
   const selectedCategory = dom.filterCategory.value;
+  const selectedColour = dom.filterColour.value;
+  const selectedUnit = dom.filterUnit.value;
   const selectedStatus = dom.filterStatus.value;
+  const selectedLocation = dom.filterLocation ? dom.filterLocation.value : "all";
 
-  // Rebuild Datalists and Categories list
-  const categories = [...new Set(state.inventory.map(item => item.category))];
-  
-  // Populate category filters
+  // Rebuild Datalists and Filters
+  const categories = [...new Set(state.inventory.map(item => item.category).filter(Boolean))];
+  const colours = [...new Set(state.inventory.map(item => item.colour).filter(Boolean))];
+
+  // Category filter dropdown
   dom.filterCategory.innerHTML = `<option value="all">All Categories</option>`;
   categories.forEach(cat => {
     const opt = document.createElement("option");
@@ -996,7 +999,17 @@ function renderInventory() {
     dom.filterCategory.appendChild(opt);
   });
 
-  // Populate Datlists
+  // Colour filter dropdown
+  dom.filterColour.innerHTML = `<option value="all">All Colours</option>`;
+  colours.forEach(col => {
+    const opt = document.createElement("option");
+    opt.value = col;
+    opt.textContent = col;
+    if (col === selectedColour) opt.selected = true;
+    dom.filterColour.appendChild(opt);
+  });
+
+  // Datlists
   dom.categorySuggestions.innerHTML = "";
   categories.forEach(cat => {
     const opt = document.createElement("option");
@@ -1011,32 +1024,38 @@ function renderInventory() {
     dom.productNamesDatalist.appendChild(opt);
   });
 
-  // Filter list
-  const selectedLocation = dom.filterLocation ? dom.filterLocation.value : "all";
-
+  // Multi-Field Search (Name, Category, Colour) & Filters
   const filteredInventory = state.inventory.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchQuery) || 
-                          item.category.toLowerCase().includes(searchQuery);
+    const nameStr = (item.name || "").toLowerCase();
+    const catStr = (item.category || "").toLowerCase();
+    const colStr = (item.colour || "").toLowerCase();
+
+    const matchesSearch = !searchQuery || 
+                          nameStr.includes(searchQuery) || 
+                          catStr.includes(searchQuery) ||
+                          colStr.includes(searchQuery);
+
     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
-    
+    const matchesColour = selectedColour === "all" || (item.colour && item.colour.toLowerCase() === selectedColour.toLowerCase());
+    const matchesUnit = selectedUnit === "all" || (item.unit && item.unit.toLowerCase() === selectedUnit.toLowerCase());
+    const matchesLocation = selectedLocation === "all" || (item.location || "Shop") === selectedLocation;
+
     let matchesStatus = true;
     if (selectedStatus === "in-stock") matchesStatus = item.quantity > item.minStock;
     else if (selectedStatus === "low-stock") matchesStatus = item.quantity > 0 && item.quantity <= item.minStock;
     else if (selectedStatus === "out-of-stock") matchesStatus = item.quantity === 0;
 
-    const matchesLocation = selectedLocation === "all" || (item.location || "Shop") === selectedLocation;
-
-    return matchesSearch && matchesCategory && matchesStatus && matchesLocation;
+    return matchesSearch && matchesCategory && matchesColour && matchesUnit && matchesStatus && matchesLocation;
   });
 
-  // Render Table rows
+  // Render Table
   dom.inventoryTableBody.innerHTML = "";
-  
+
   if (filteredInventory.length === 0) {
     dom.inventoryTableBody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
-          No products found matching your filters.
+        <td colspan="6" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+          No products found matching your search or filters.
         </td>
       </tr>
     `;
@@ -1046,35 +1065,34 @@ function renderInventory() {
   filteredInventory.forEach(item => {
     let statusClass = "badge-emerald";
     let statusText = "In Stock";
-    
+
     if (item.quantity === 0) {
       statusClass = "badge-rose";
       statusText = "Out of Stock";
     } else if (item.quantity <= item.minStock) {
-      statusClass = "badge-rose"; // Keep rose for alerts
+      statusClass = "badge-rose";
       statusText = "Low Stock";
     }
+
+    const itemId = item.id || item.stockId;
+    const unitDisplay = (item.unit || "piece").charAt(0).toUpperCase() + (item.unit || "piece").slice(1);
 
     let actionButtons = "";
     if (user.role === "owner") {
       actionButtons = `
-        <button class="btn-action-icon" title="Sell Stock" onclick="openStockActionModal('${item.id}', 'sell')">
+        <button class="btn-action-icon" title="Sell Stock" onclick="openStockActionModal('${itemId}', 'sell')">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline></svg>
         </button>
-        <button class="btn-action-icon" title="Damage Stock" onclick="openStockActionModal('${item.id}', 'damage')">
+        <button class="btn-action-icon" title="Damage Stock" onclick="openStockActionModal('${itemId}', 'damage')">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
         </button>
-        <button class="btn-action-icon" title="Remove Stock" onclick="openStockActionModal('${item.id}', 'remove')">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        </button>
-        <button class="btn-action-icon text-danger" title="Delete Product" onclick="deleteProduct('${item.id}')">
+        <button class="btn-action-icon text-danger" title="Delete Product" onclick="deleteProduct('${itemId}')">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         </button>
       `;
     } else {
-      // Staff actions (Sell Only from inventory page)
       actionButtons = `
-        <button class="btn-action-icon" title="Sell Stock" onclick="openStockActionModal('${item.id}', 'sell')">
+        <button class="btn-action-icon" title="Sell Stock" onclick="openStockActionModal('${itemId}', 'sell')">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline></svg>
         </button>
       `;
@@ -1090,7 +1108,8 @@ function renderInventory() {
         </div>
       </td>
       <td data-label="Category"><span class="text-muted">${item.category}</span></td>
-      <td data-label="Quantity"><strong>${item.quantity}</strong> <span class="text-muted" style="font-size: 11px;">/ ${item.minStock} threshold</span></td>
+      <td data-label="Colour"><span class="colour-pill"><span class="colour-dot"></span>${item.colour || 'N/A'}</span></td>
+      <td data-label="Quantity & Unit"><strong>${item.quantity} ${unitDisplay}</strong> <span class="text-muted" style="font-size: 11px;">(min ${item.minStock})</span></td>
       <td data-label="Status"><span class="badge ${statusClass}">${statusText}</span></td>
       <td data-label="Actions" class="table-actions-cell"><div class="table-actions">${actionButtons}</div></td>
     `;
@@ -1098,44 +1117,28 @@ function renderInventory() {
   });
 }
 
-// 3. Transactions Tab
+// 3. Transactions / Activity Log Tab
 function renderTransactions() {
   const user = state.currentUser;
   if (!user) return;
 
-  const searchQuery = dom.transactionsSearch.value.toLowerCase();
+  const searchQuery = dom.transactionsSearch.value.toLowerCase().trim();
   const selectedType = dom.filterTransactionType.value;
-  const selectedDate = dom.filterTransactionDate ? dom.filterTransactionDate.value : "";
-
-  // If no date is selected, show placeholder prompting the user to pick a date
-  if (!selectedDate) {
-    dom.transactionsTableBody.innerHTML = `
-      <tr>
-        <td colspan="5" style="text-align: center; padding: 40px 0; color: var(--text-muted); font-weight: 500;">
-          Please select a date to view activity logs.
-        </td>
-      </tr>
-    `;
-    return;
-  }
 
   const filteredTxs = state.transactions.filter(tx => {
-    const matchesSearch = tx.itemName.toLowerCase().includes(searchQuery) || 
-                          tx.user.toLowerCase().includes(searchQuery) ||
-                          (tx.notes && tx.notes.toLowerCase().includes(searchQuery));
+    const nameStr = (tx.itemName || "").toLowerCase();
+    const colourStr = (tx.colour || "").toLowerCase();
+    const userStr = (tx.user || "").toLowerCase();
+    const notesStr = (tx.notes || "").toLowerCase();
+
+    const matchesSearch = !searchQuery || 
+                          nameStr.includes(searchQuery) ||
+                          colourStr.includes(searchQuery) ||
+                          userStr.includes(searchQuery) ||
+                          notesStr.includes(searchQuery);
+
     const matchesType = selectedType === "all" || tx.type === selectedType;
-    
-    let matchesDate = true;
-    if (selectedDate) {
-      const dateObj = new Date(tx.timestamp);
-      const year = dateObj.getFullYear();
-      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-      const day = String(dateObj.getDate()).padStart(2, "0");
-      const txLocalDate = `${year}-${month}-${day}`;
-      matchesDate = txLocalDate === selectedDate;
-    }
-    
-    return matchesSearch && matchesType && matchesDate;
+    return matchesSearch && matchesType;
   });
 
   dom.transactionsTableBody.innerHTML = "";
@@ -1144,7 +1147,7 @@ function renderTransactions() {
     dom.transactionsTableBody.innerHTML = `
       <tr>
         <td colspan="5" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
-          No activity logs found.
+          No activities found for the selected period or filters.
         </td>
       </tr>
     `;
@@ -1154,33 +1157,29 @@ function renderTransactions() {
   filteredTxs.forEach(tx => {
     let badgeClass = "badge-cyan";
     let prefix = "";
-    
+
     if (tx.type === "sell") { badgeClass = "badge-emerald"; prefix = "-"; }
     else if (tx.type === "add") { badgeClass = "badge-violet"; prefix = "+"; }
     else if (tx.type === "damage") { badgeClass = "badge-rose"; prefix = "-"; }
     else if (tx.type === "remove") { badgeClass = "badge-rose"; prefix = "-"; }
 
-    const formattedDate = new Date(tx.timestamp).toLocaleString();
+    const formattedDate = new Date(tx.timestamp).toLocaleString("en-US", {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    });
+
+    const unitText = (tx.unit || "piece").toUpperCase();
     const tr = document.createElement("tr");
-    
-    const loc = tx.location || "";
-    const rag = tx.ragNumber || "";
-    const hasStorage = loc || rag;
 
     tr.innerHTML = `
-      <td data-label="Timestamp"><span class="text-muted">${formattedDate}</span></td>
-      <td data-label="Product">
+      <td data-label="Timestamp"><span class="text-muted" style="font-size: 12px;">${formattedDate}</span></td>
+      <td data-label="Product & Colour">
         <strong>${tx.itemName}</strong>
-        ${hasStorage ? `
-          <div class="product-storage-info">
-            <span class="storage-location-badge location-${(loc || 'Shop').toLowerCase()}">${loc || 'Shop'}</span>
-            ${rag ? `<span class="storage-rag-badge">Rag: ${rag}</span>` : ''}
-          </div>
-        ` : ''}
-        ${tx.notes ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Note: ${tx.notes}</div>` : ""}
+        <span class="colour-pill" style="margin-left: 6px;"><span class="colour-dot"></span>${tx.colour || 'N/A'}</span>
+        ${tx.notes ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${tx.notes}</div>` : ""}
       </td>
       <td data-label="Activity Type"><span class="badge ${badgeClass}">${tx.type}</span></td>
-      <td data-label="Quantity Changed"><strong class="${tx.type === 'sell' ? 'text-success' : tx.type === 'damage' ? 'text-danger' : ''}">${prefix}${tx.quantity}</strong></td>
+      <td data-label="Quantity Changed"><strong class="${tx.type === 'sell' ? 'text-success' : tx.type === 'damage' ? 'text-danger' : ''}">${prefix}${tx.quantity} ${unitText}</strong></td>
       <td data-label="Logged By"><code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">@${tx.user}</code></td>
     `;
     dom.transactionsTableBody.appendChild(tr);
@@ -1192,7 +1191,7 @@ function renderStaff() {
   if (!state.currentUser || state.currentUser.role !== "owner") return;
 
   dom.staffListBody.innerHTML = "";
-  const staffMembers = state.users.filter(u => u.role === "staff" && u.shopId === state.currentUser.shopId);
+  const staffMembers = state.users.filter(u => u.role === "staff");
 
   if (staffMembers.length === 0) {
     dom.staffListBody.innerHTML = `
@@ -1224,49 +1223,44 @@ function renderStaff() {
 window.openAddStockModal = function() {
   dom.newProductFields.classList.add("hidden");
   dom.formAddStock.reset();
-  
-  // Fill category suggestions
-  const categories = [...new Set(state.inventory.map(item => item.category))];
-  dom.categorySuggestions.innerHTML = "";
-  categories.forEach(cat => {
-    const opt = document.createElement("option");
-    opt.value = cat;
-    dom.categorySuggestions.appendChild(opt);
-  });
-
   openModal("modal-add-stock");
 };
 
 window.openStockActionModal = function(itemId, actionType) {
-  const item = state.inventory.find(i => i.id === itemId);
+  const item = state.inventory.find(i => i.id === itemId || i.stockId === itemId);
   if (!item) return;
 
-  dom.actionItemId.value = item.id;
+  dom.actionItemId.value = item.id || item.stockId;
   dom.actionType.value = actionType;
-  
+
   dom.actionProductName.textContent = item.name;
-  dom.actionCurrentQty.textContent = item.quantity;
+  dom.actionProductColour.textContent = item.colour || 'N/A';
   
+  const unitText = (item.unit || "piece").charAt(0).toUpperCase() + (item.unit || "piece").slice(1);
+  dom.actionCurrentQty.textContent = `${item.quantity} ${unitText}`;
+  dom.actionQtyUnitLabel.textContent = unitText;
+
   dom.actionQty.value = "";
   dom.actionQty.max = item.quantity;
   dom.actionQtyError.classList.add("hidden");
   dom.stockActionSubmitBtn.disabled = false;
+  dom.actionRemainingVal.textContent = `${item.quantity} ${unitText}`;
+  dom.actionRemainingVal.className = "text-success";
 
   const locVal = item.location || "Shop";
   const ragVal = item.ragNumber ? ` (Rag: ${item.ragNumber})` : "";
   if (dom.actionStorageLocation) dom.actionStorageLocation.textContent = `${locVal}${ragVal}`;
 
-  // Custom styling based on action
   if (actionType === "sell") {
-    dom.stockActionTitle.textContent = "Record Sale";
-    dom.actionQtyLabel.textContent = "Quantity Sold";
+    dom.stockActionTitle.textContent = "Sell Stock";
+    dom.actionQtyLabel.textContent = "Selling Quantity";
     dom.stockActionSubmitBtn.className = "btn btn-primary";
     dom.stockActionSubmitBtn.textContent = "Complete Sale";
   } else if (actionType === "damage") {
-    dom.stockActionTitle.textContent = "Report Damage";
-    dom.actionQtyLabel.textContent = "Quantity Damaged";
-    dom.stockActionSubmitBtn.className = "btn btn-primary btn-danger"; // Custom red style
-    dom.stockActionSubmitBtn.textContent = "Log Damage";
+    dom.stockActionTitle.textContent = "Report Defective Stock";
+    dom.actionQtyLabel.textContent = "Defective Quantity";
+    dom.stockActionSubmitBtn.className = "btn btn-primary btn-danger";
+    dom.stockActionSubmitBtn.textContent = "Log Defective Stock";
   } else if (actionType === "remove") {
     dom.stockActionTitle.textContent = "Remove Stock";
     dom.actionQtyLabel.textContent = "Quantity to Remove";
@@ -1295,11 +1289,11 @@ function closeAllModals() {
   dom.modalBackdrop.classList.add("hidden");
 }
 
-// ================= TOAST NOTIFICATION SYSTEM =================
+// ================= TOAST NOTIFICATIONS =================
 function showToast(message, type = "info") {
   const toast = document.createElement("div");
   toast.className = `toast toast-${type}`;
-  
+
   let icon = "";
   if (type === "success") {
     icon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" style="width:18px;height:18px;"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
@@ -1311,15 +1305,9 @@ function showToast(message, type = "info") {
     icon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" style="width:18px;height:18px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line></svg>`;
   }
 
-  toast.innerHTML = `
-    ${icon}
-    <span class="toast-message">${message}</span>
-  `;
-  
+  toast.innerHTML = `${icon}<span class="toast-message">${message}</span>`;
   const container = document.getElementById("toast-container");
-  if (container) {
-    container.appendChild(toast);
-  }
+  if (container) container.appendChild(toast);
 
   setTimeout(() => {
     toast.style.opacity = "0";
@@ -1330,6 +1318,7 @@ function showToast(message, type = "info") {
 
 // ================= UTILITIES =================
 function formatTimeAgo(date) {
+  if (isNaN(date.getTime())) return "recently";
   const seconds = Math.floor((new Date() - date) / 1000);
   let interval = Math.floor(seconds / 31536000);
   if (interval >= 1) return interval + "y ago";
@@ -1351,14 +1340,16 @@ function exportInventoryToCSV() {
   }
 
   let csvContent = "data:text/csv;charset=utf-8,";
-  csvContent += "Product ID,Product Name,Category,Quantity,Min Threshold,Location,Rag Number\n";
+  csvContent += "Product ID,Product Name,Category,Colour,Quantity,Unit,Min Threshold,Location,Rag Number\n";
 
   state.inventory.forEach(item => {
     const row = [
-      item.id,
-      `"${item.name.replace(/"/g, '""')}"`,
-      `"${item.category.replace(/"/g, '""')}"`,
+      item.id || item.stockId,
+      `"${(item.name || '').replace(/"/g, '""')}"`,
+      `"${(item.category || '').replace(/"/g, '""')}"`,
+      `"${(item.colour || '').replace(/"/g, '""')}"`,
       item.quantity,
+      `"${(item.unit || 'piece').replace(/"/g, '""')}"`,
       item.minStock,
       `"${(item.location || 'Shop').replace(/"/g, '""')}"`,
       `"${(item.ragNumber || '').replace(/"/g, '""')}"`
@@ -1376,5 +1367,5 @@ function exportInventoryToCSV() {
   showToast("Inventory CSV exported successfully!", "success");
 }
 
-// ================= START APP =================
+// ================= APP INITIALIZATION =================
 window.addEventListener("DOMContentLoaded", init);
