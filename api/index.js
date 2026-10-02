@@ -49,9 +49,12 @@ function saveLocalStore(store) {
   }
 }
 
+let lastMongoError = null;
+
 async function connectDB() {
   if (isMongoConnected) return true;
   if (!MONGODB_URI || MONGODB_URI.includes('YOUR_MONGODB_URI')) {
+    lastMongoError = "MONGODB_URI is not set in .env file";
     return false;
   }
   try {
@@ -59,10 +62,22 @@ async function connectDB() {
       serverSelectionTimeoutMS: 5000
     });
     isMongoConnected = true;
-    console.log("MongoDB connected successfully!");
+    lastMongoError = null;
+    console.log(`\n==================================================`);
+    console.log(` SUCCESS: Connected to MongoDB Atlas!`);
+    console.log(` Database: ${mongoose.connection.name}`);
+    console.log(`==================================================\n`);
     return true;
   } catch (e) {
-    console.error("MongoDB connection failed, using local JSON store:", e.message);
+    lastMongoError = e.message;
+    console.error(`\n==================================================`);
+    console.error(` WARNING: MongoDB connection failed!`);
+    console.error(` Error: ${e.message}`);
+    console.error(` Notice: App running in Local Fallback mode.`);
+    console.error(` Checklist:`);
+    console.error(` 1. Check database password in .env file`);
+    console.error(` 2. Check MongoDB Atlas -> Network Access -> Add IP (0.0.0.0/0)`);
+    console.error(`==================================================\n`);
     isMongoConnected = false;
     return false;
   }
@@ -76,11 +91,17 @@ app.use(async (req, res, next) => {
 
 // Helper response formatting
 function apiSuccess(res, data, message = "") {
-  return res.json({ success: true, data, message, dbMode: isMongoConnected ? "mongodb" : "local_fallback" });
+  return res.json({ 
+    success: true, 
+    data, 
+    message, 
+    dbMode: isMongoConnected ? "mongodb" : "local_fallback",
+    dbError: lastMongoError
+  });
 }
 
 function apiError(res, message = "An error occurred", code = 400) {
-  return res.status(code).json({ success: false, message });
+  return res.status(code).json({ success: false, message, dbMode: isMongoConnected ? "mongodb" : "local_fallback" });
 }
 
 // ================= ROUTES =================
@@ -91,6 +112,8 @@ app.get('/api/status', (req, res) => {
     status: "online",
     dbConnected: isMongoConnected,
     dbMode: isMongoConnected ? "MongoDB Atlas" : "Local Storage / File Fallback",
+    dbName: isMongoConnected ? mongoose.connection.name : null,
+    dbError: lastMongoError,
     timestamp: new Date().toISOString()
   });
 });

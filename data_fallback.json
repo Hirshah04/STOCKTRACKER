@@ -7,6 +7,20 @@
       "phone": "+1 555-9876",
       "email": "contact@testcotton.com",
       "ownerUsername": "testowner_1790918149662"
+    },
+    {
+      "id": "shop_1782880683533",
+      "name": "MM",
+      "phone": "1234567890",
+      "email": "shahhir0408@gmail.com",
+      "ownerUsername": "shahhir0408@gmail.com"
+    },
+    {
+      "id": "shop_1782880930656",
+      "name": "Bhagyesh",
+      "phone": "314569870",
+      "email": "22004500210225@ljku.edu.in",
+      "ownerUsername": "bas"
     }
   ],
   "users": [
@@ -15,6 +29,24 @@
       "password": "password123",
       "role": "owner",
       "shopId": "shop_1790918150228"
+    },
+    {
+      "username": "shahhir0408@gmail.com",
+      "password": "12345678",
+      "role": "owner",
+      "shopId": "shop_1782880683533"
+    },
+    {
+      "username": "hir",
+      "password": "hir123",
+      "role": "staff",
+      "shopId": "shop_1782880683533"
+    },
+    {
+      "username": "bas",
+      "password": "BAS123",
+      "role": "owner",
+      "shopId": "shop_1782880930656"
     }
   ],
   "stocks": [
@@ -47,9 +79,76 @@
       "minStock": 5,
       "createdAt": "2026-10-02T05:15:50.239Z",
       "updatedAt": "2026-10-02T05:15:50.239Z"
+    },
+    {
+      "id": "p1",
+      "name": "Whole Milk 1L",
+      "category": "Dairy",
+      "quantity": 24,
+      "minStock": 8,
+      "shopId": "shop_1782880930656"
+    },
+    {
+      "id": "p2",
+      "name": "White Bread 500g",
+      "category": "Bakery",
+      "quantity": 15,
+      "minStock": 5,
+      "shopId": "shop_1782880930656"
+    },
+    {
+      "id": "p3",
+      "name": "Coca Cola 330ml Can",
+      "category": "Beverages",
+      "quantity": 4,
+      "minStock": 12,
+      "shopId": "shop_1782880930656"
+    },
+    {
+      "id": "p4",
+      "name": "Eggs 12-Pack",
+      "category": "Dairy",
+      "quantity": 18,
+      "minStock": 6,
+      "shopId": "shop_1782880930656"
+    },
+    {
+      "id": "p5",
+      "name": "Potato Chips 150g",
+      "category": "Snacks",
+      "quantity": 30,
+      "minStock": 10,
+      "shopId": "shop_1782880930656"
+    },
+    {
+      "id": "p6",
+      "name": "Dish Soap 500ml",
+      "category": "Household",
+      "quantity": 0,
+      "minStock": 4,
+      "shopId": "shop_1782880930656"
+    },
+    {
+      "id": "p1782880835242",
+      "name": "Bearing",
+      "category": "Thar",
+      "quantity": 1000,
+      "minStock": 5,
+      "shopId": "shop_1782880683533"
     }
   ],
   "activities": [
+    {
+      "id": "t1782880835242",
+      "type": "add",
+      "itemId": "p1782880835242",
+      "itemName": "Bearing",
+      "quantity": 1000,
+      "user": "hir",
+      "timestamp": "2026-07-01T04:40:35.242Z",
+      "notes": "Created new catalog product",
+      "shopId": "shop_1782880683533"
+    },
     {
       "id": "t1790918150252",
       "activityId": "t1790918150252",
