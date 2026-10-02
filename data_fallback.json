@@ -1,0 +1,118 @@
+{
+  "shops": [
+    {
+      "id": "shop_1790918150228",
+      "shopId": "shop_1790918150228",
+      "name": "Test Cotton Mills",
+      "phone": "+1 555-9876",
+      "email": "contact@testcotton.com",
+      "ownerUsername": "testowner_1790918149662"
+    }
+  ],
+  "users": [
+    {
+      "username": "testowner_1790918149662",
+      "password": "password123",
+      "role": "owner",
+      "shopId": "shop_1790918150228"
+    }
+  ],
+  "stocks": [
+    {
+      "id": "p1790918150235",
+      "stockId": "p1790918150235",
+      "shopId": "shop_1790918150228",
+      "name": "Cotton Fabric",
+      "category": "Fabrics",
+      "colour": "Red",
+      "quantity": 60,
+      "unit": "kg",
+      "location": "Shop",
+      "ragNumber": "A-1",
+      "minStock": 5,
+      "createdAt": "2026-10-02T05:15:50.235Z",
+      "updatedAt": "2026-10-02T05:15:50.235Z"
+    },
+    {
+      "id": "p1790918150239",
+      "stockId": "p1790918150239",
+      "shopId": "shop_1790918150228",
+      "name": "Cotton Shirt",
+      "category": "Apparel",
+      "colour": "Dark Red",
+      "quantity": 50,
+      "unit": "piece",
+      "location": "Godown",
+      "ragNumber": "B-4",
+      "minStock": 5,
+      "createdAt": "2026-10-02T05:15:50.239Z",
+      "updatedAt": "2026-10-02T05:15:50.239Z"
+    }
+  ],
+  "activities": [
+    {
+      "id": "t1790918150252",
+      "activityId": "t1790918150252",
+      "shopId": "shop_1790918150228",
+      "type": "damage",
+      "itemId": "p1790918150235",
+      "itemName": "Cotton Fabric",
+      "colour": "Red",
+      "quantity": 10,
+      "unit": "kg",
+      "user": "testowner_1790918149662",
+      "timestamp": "2026-10-02T05:15:50.252Z",
+      "notes": "Water damaged fabric | Loc: Shop",
+      "location": "Shop",
+      "ragNumber": "A-1"
+    },
+    {
+      "id": "t1790918150245",
+      "activityId": "t1790918150245",
+      "shopId": "shop_1790918150228",
+      "type": "sell",
+      "itemId": "p1790918150235",
+      "itemName": "Cotton Fabric",
+      "colour": "Red",
+      "quantity": 30,
+      "unit": "kg",
+      "user": "testowner_1790918149662",
+      "timestamp": "2026-10-02T05:15:50.245Z",
+      "notes": "Customer counter purchase | Loc: Shop",
+      "location": "Shop",
+      "ragNumber": "A-1"
+    },
+    {
+      "id": "t1790918150239",
+      "activityId": "t1790918150239",
+      "shopId": "shop_1790918150228",
+      "type": "add",
+      "itemId": "p1790918150239",
+      "itemName": "Cotton Shirt",
+      "colour": "Dark Red",
+      "quantity": 50,
+      "unit": "piece",
+      "user": "testowner_1790918149662",
+      "timestamp": "2026-10-02T05:15:50.239Z",
+      "notes": "Created new product | Loc: Godown, Rag: B-4",
+      "location": "Godown",
+      "ragNumber": "B-4"
+    },
+    {
+      "id": "t1790918150235",
+      "activityId": "t1790918150235",
+      "shopId": "shop_1790918150228",
+      "type": "add",
+      "itemId": "p1790918150235",
+      "itemName": "Cotton Fabric",
+      "colour": "Red",
+      "quantity": 100,
+      "unit": "kg",
+      "user": "testowner_1790918149662",
+      "timestamp": "2026-10-02T05:15:50.235Z",
+      "notes": "Initial delivery | Loc: Shop, Rag: A-1",
+      "location": "Shop",
+      "ragNumber": "A-1"
+    }
+  ]
+}
