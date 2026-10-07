@@ -20,7 +20,7 @@ app.use(express.static(path.join(__dirname, '../')));
 
 
 // Database connection & Local Fallback Store
-const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
+const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL || process.env.MONGODB_URI_MONGODB_URI;
 let isMongoConnected = false;
 
 const LOCAL_DB_PATH = path.join(__dirname, '../data_fallback.json');
@@ -52,14 +52,23 @@ function saveLocalStore(store) {
 let lastMongoError = null;
 
 async function connectDB() {
-  if (isMongoConnected) return true;
-  if (!MONGODB_URI || MONGODB_URI.includes('YOUR_MONGODB_URI')) {
-    lastMongoError = "MONGODB_URI is not set in .env file";
+  if (mongoose.connection.readyState === 1) {
+    isMongoConnected = true;
+    lastMongoError = null;
+    return true;
+  }
+
+  const mongoUri = process.env.MONGODB_URI || process.env.DATABASE_URL || process.env.MONGODB_URI_MONGODB_URI;
+
+  if (!mongoUri || mongoUri.includes('YOUR_MONGODB_URI')) {
+    lastMongoError = "MONGODB_URI environment variable is not set";
+    isMongoConnected = false;
     return false;
   }
   try {
-    await mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000
     });
     isMongoConnected = true;
     lastMongoError = null;
@@ -74,9 +83,6 @@ async function connectDB() {
     console.error(` WARNING: MongoDB connection failed!`);
     console.error(` Error: ${e.message}`);
     console.error(` Notice: App running in Local Fallback mode.`);
-    console.error(` Checklist:`);
-    console.error(` 1. Check database password in .env file`);
-    console.error(` 2. Check MongoDB Atlas -> Network Access -> Add IP (0.0.0.0/0)`);
     console.error(`==================================================\n`);
     isMongoConnected = false;
     return false;
