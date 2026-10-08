@@ -21,6 +21,14 @@
       "phone": "314569870",
       "email": "22004500210225@ljku.edu.in",
       "ownerUsername": "bas"
+    },
+    {
+      "id": "shop_1791468867733",
+      "shopId": "shop_1791468867733",
+      "name": "Test Shop 1791468867487",
+      "phone": "1234567890",
+      "email": "test@shop.com",
+      "ownerUsername": "test_owner_1791468867487"
     }
   ],
   "users": [
@@ -47,6 +55,18 @@
       "password": "BAS123",
       "role": "owner",
       "shopId": "shop_1782880930656"
+    },
+    {
+      "username": "test_owner_1791468867487",
+      "password": "$2b$10$RaAisOXr/S0ufwSYiS.4x.9Ffep0cbkaZ7dzRBJHmu4nHZSWDI6zW",
+      "role": "owner",
+      "shopId": "shop_1791468867733"
+    },
+    {
+      "username": "test_staff_1791468867487",
+      "password": "$2b$10$nn3LEsNZ/ebxL3QsspUp/./kx0gSmgOPQjJ6D/nflSKaJ2bz2oe7a",
+      "role": "staff",
+      "shopId": "shop_1791468867733"
     }
   ],
   "stocks": [
@@ -135,9 +155,111 @@
       "quantity": 1000,
       "minStock": 5,
       "shopId": "shop_1782880683533"
+    },
+    {
+      "id": "p1791468868138",
+      "stockId": "p1791468868138",
+      "shopId": "shop_1791468867733",
+      "productId": "prod_1791468868105_1606",
+      "name": "Cotton Fabric",
+      "category": "Fabrics",
+      "colour": "Dark Orange",
+      "customColour": "Dark Orange",
+      "quantity": 35,
+      "unit": "set",
+      "price": 750,
+      "brandName": "Nike",
+      "buyDate": "2026-10-08T00:00:00.000Z",
+      "transactionType": "bill",
+      "billNo": "INV-1025",
+      "challanNo": "",
+      "location": "Shop",
+      "ragNumber": "A-1",
+      "minStock": 5,
+      "createdBy": "test_owner_1791468867487",
+      "createdAt": "2026-10-08T14:14:28.138Z",
+      "updatedAt": "2026-10-08T14:14:28.138Z"
     }
   ],
   "activities": [
+    {
+      "id": "act_1791468868146",
+      "activityId": "act_1791468868146",
+      "shopId": "shop_1791468867733",
+      "type": "sell",
+      "productId": "prod_1791468868105_1606",
+      "itemId": "p1791468868138",
+      "itemName": "Cotton Fabric",
+      "category": "Fabrics",
+      "colour": "Dark Orange",
+      "customColour": "Dark Orange",
+      "quantity": 15,
+      "unit": "set",
+      "price": 850,
+      "brandName": "Nike",
+      "saleDate": "2026-10-08T00:00:00.000Z",
+      "transactionType": "challan",
+      "billNo": "",
+      "challanNo": "CH-5001",
+      "user": "test_staff_1791468867487",
+      "role": "staff",
+      "timestamp": "2026-10-08T00:00:00.000Z",
+      "notes": "Counter sale to wholesale buyer",
+      "location": "Shop",
+      "ragNumber": "A-1"
+    },
+    {
+      "id": "act_1791468868138",
+      "activityId": "act_1791468868138",
+      "shopId": "shop_1791468867733",
+      "type": "add",
+      "productId": "prod_1791468868105_1606",
+      "itemId": "p1791468868138",
+      "itemName": "Cotton Fabric",
+      "category": "Fabrics",
+      "colour": "Dark Orange",
+      "customColour": "Dark Orange",
+      "quantity": 50,
+      "unit": "set",
+      "price": 750,
+      "brandName": "Nike",
+      "buyDate": "2026-10-08T00:00:00.000Z",
+      "transactionType": "bill",
+      "billNo": "INV-1025",
+      "challanNo": "",
+      "user": "test_owner_1791468867487",
+      "role": "owner",
+      "timestamp": "2026-10-08T14:14:28.138Z",
+      "notes": "Added stock to catalog",
+      "location": "Shop",
+      "ragNumber": "A-1"
+    },
+    {
+      "id": "act_1791468868111",
+      "activityId": "act_1791468868111",
+      "shopId": "shop_1791468867733",
+      "type": "product_add",
+      "productId": "prod_1791468868111_u2a5",
+      "itemName": "Silk Saree",
+      "category": "Apparel",
+      "user": "test_owner_1791468867487",
+      "role": "owner",
+      "timestamp": "2026-10-08T14:14:28.111Z",
+      "notes": "Created master product \"Silk Saree\" (Apparel)"
+    },
+    {
+      "id": "act_1791468868105",
+      "activityId": "act_1791468868105",
+      "shopId": "shop_1791468867733",
+      "type": "product_add",
+      "productId": "prod_1791468868105_1606",
+      "itemName": "Cotton Fabric",
+      "category": "Fabrics",
+      "user": "test_owner_1791468867487",
+      "role": "owner",
+      "timestamp": "2026-10-08T14:14:28.105Z",
+      "notes": "Created master product \"Cotton Fabric\" (Fabrics)"
+    },
     {
       "id": "t1782880835242",
       "type": "add",
@@ -212,6 +334,28 @@
       "notes": "Initial delivery | Loc: Shop, Rag: A-1",
       "location": "Shop",
       "ragNumber": "A-1"
+    }
+  ],
+  "products": [
+    {
+      "id": "prod_1791468868105_1606",
+      "productId": "prod_1791468868105_1606",
+      "shopId": "shop_1791468867733",
+      "name": "Cotton Fabric",
+      "category": "Fabrics",
+      "createdBy": "test_owner_1791468867487",
+      "createdAt": "2026-10-08T14:14:28.105Z",
+      "updatedAt": "2026-10-08T14:14:28.105Z"
+    },
+    {
+      "id": "prod_1791468868111_u2a5",
+      "productId": "prod_1791468868111_u2a5",
+      "shopId": "shop_1791468867733",
+      "name": "Silk Saree",
+      "category": "Apparel",
+      "createdBy": "test_owner_1791468867487",
+      "createdAt": "2026-10-08T14:14:28.111Z",
+      "updatedAt": "2026-10-08T14:14:28.111Z"
     }
   ]
 }

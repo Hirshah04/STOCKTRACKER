@@ -1,8 +1,10 @@
 // ================= STATE & API CLIENT =================
 let state = {
+  token: localStorage.getItem("stocktaker_token") || null,
   currentUser: null,
   shopInfo: null,
   users: [],
+  products: [],
   inventory: [],
   transactions: [],
   activePeriod: "all",
@@ -17,6 +19,10 @@ const API_BASE = "";
 async function apiFetch(endpoint, options = {}) {
   try {
     const defaultHeaders = { 'Content-Type': 'application/json' };
+    if (state.token) {
+      defaultHeaders['Authorization'] = `Bearer ${state.token}`;
+    }
+
     const config = {
       ...options,
       headers: { ...defaultHeaders, ...(options.headers || {}) }
@@ -30,6 +36,16 @@ async function apiFetch(endpoint, options = {}) {
 
     if (result.dbMode) {
       updateDbStatusUI(result.dbMode);
+    }
+
+    if (response.status === 401) {
+      // Unauthenticated / expired session
+      state.token = null;
+      state.currentUser = null;
+      localStorage.removeItem("stocktaker_token");
+      localStorage.removeItem("stocktaker_session");
+      showAuthScreen();
+      throw new Error(result.message || "Session expired. Please sign in again.");
     }
 
     if (!response.ok || !result.success) {
@@ -69,8 +85,6 @@ const dom = {
   authScreen: document.getElementById("auth-screen"),
   shopSetupScreen: document.getElementById("shop-setup-screen"),
   appLayout: document.getElementById("app-layout"),
-  migrationBanner: document.getElementById("migration-banner"),
-  migrateBtn: document.getElementById("migrate-btn"),
   
   // Forms
   loginForm: document.getElementById("login-form"),
@@ -115,6 +129,12 @@ const dom = {
   lowStockList: document.getElementById("low-stock-list"),
   recentTransactionsList: document.getElementById("recent-transactions-list"),
   
+  // Master Products Tab
+  formAddProduct: document.getElementById("form-add-product"),
+  addProductName: document.getElementById("add-product-name"),
+  addProductCategory: document.getElementById("add-product-category"),
+  productsTableBody: document.getElementById("products-table-body"),
+
   // Inventory Tab
   inventorySearch: document.getElementById("inventory-search"),
   filterCategory: document.getElementById("filter-category"),
@@ -134,7 +154,6 @@ const dom = {
   sortOrderBtn: document.getElementById("sort-order-btn"),
   sortOrderText: document.getElementById("sort-order-text"),
   transactionsTableBody: document.getElementById("transactions-table-body"),
-  clearLogsBtn: document.getElementById("clear-logs-btn"),
   
   // Staff Tab
   staffRegisterForm: document.getElementById("staff-register-form"),
@@ -148,20 +167,25 @@ const dom = {
   // Add Stock Modal
   modalAddStock: document.getElementById("modal-add-stock"),
   formAddStock: document.getElementById("form-add-stock"),
-  addStockName: document.getElementById("add-stock-name"),
-  addStockColour: document.getElementById("add-stock-colour"),
+  addStockProductSelect: document.getElementById("add-stock-product-select"),
+  addStockCategoryDisplay: document.getElementById("add-stock-category-display"),
+  addStockColourSelect: document.getElementById("add-stock-colour-select"),
+  addStockCustomColourGroup: document.getElementById("add-stock-custom-colour-group"),
+  addStockCustomColour: document.getElementById("add-stock-custom-colour"),
   addStockUnit: document.getElementById("add-stock-unit"),
   addStockQty: document.getElementById("add-stock-qty"),
-  addStockNotes: document.getElementById("add-stock-notes"),
+  addStockPrice: document.getElementById("add-stock-price"),
+  addStockBrand: document.getElementById("add-stock-brand"),
+  addStockBuyDate: document.getElementById("add-stock-buy-date"),
+  addStockTxType: document.getElementById("add-stock-tx-type"),
+  addStockBillNoGroup: document.getElementById("add-stock-bill-no-group"),
+  addStockBillNo: document.getElementById("add-stock-bill-no"),
+  addStockChallanNoGroup: document.getElementById("add-stock-challan-no-group"),
+  addStockChallanNo: document.getElementById("add-stock-challan-no"),
   addStockLocation: document.getElementById("add-stock-location"),
   addStockRag: document.getElementById("add-stock-rag"),
-  newProductFields: document.getElementById("new-product-fields"),
-  newProdCategory: document.getElementById("new-prod-category"),
-  newProdMin: document.getElementById("new-prod-min"),
-  productNamesDatalist: document.getElementById("product-names-datalist"),
-  categorySuggestions: document.getElementById("category-suggestions"),
   
-  // Stock Action Modal (Sell, Damage, Remove)
+  // Stock Action Modal (Sell / Damage)
   modalStockAction: document.getElementById("modal-stock-action"),
   formStockAction: document.getElementById("form-stock-action"),
   stockActionTitle: document.getElementById("stock-action-title"),
@@ -176,6 +200,20 @@ const dom = {
   actionQtyUnitLabel: document.getElementById("action-qty-unit-label"),
   actionQtyError: document.getElementById("action-qty-error"),
   actionRemainingVal: document.getElementById("action-remaining-val"),
+  
+  // Sell Extra Fields
+  sellExtraFields: document.getElementById("sell-extra-fields"),
+  actionPrice: document.getElementById("action-price"),
+  actionSaleDate: document.getElementById("action-sale-date"),
+  actionBrand: document.getElementById("action-brand"),
+  actionColourSelect: document.getElementById("action-colour-select"),
+  actionCustomColourGroup: document.getElementById("action-custom-colour-group"),
+  actionCustomColour: document.getElementById("action-custom-colour"),
+  actionTxType: document.getElementById("action-tx-type"),
+  actionBillNoGroup: document.getElementById("action-bill-no-group"),
+  actionBillNo: document.getElementById("action-bill-no"),
+  actionChallanNoGroup: document.getElementById("action-challan-no-group"),
+  actionChallanNo: document.getElementById("action-challan-no"),
   actionNotesGroup: document.getElementById("action-notes-group"),
   actionNotes: document.getElementById("action-notes"),
   stockActionSubmitBtn: document.getElementById("stock-action-submit-btn")
@@ -198,15 +236,17 @@ async function init() {
   }
 
   setupEventListeners();
-  checkLocalStorageMigrationNeed();
 
-  if (savedSession) {
+  if (state.token && savedSession) {
     try {
       state.currentUser = JSON.parse(savedSession);
       await loadShopData();
       showAppLayout();
     } catch (e) {
       console.error("Failed to load session:", e);
+      state.token = null;
+      state.currentUser = null;
+      localStorage.removeItem("stocktaker_token");
       localStorage.removeItem("stocktaker_session");
       showAuthScreen();
     }
@@ -229,17 +269,20 @@ async function loadShopData() {
       state.shopInfo = { id: shopId, name: "My Shop", phone: "", email: "" };
     }
 
-    // 2. Fetch Stocks
-    const stocksRes = await apiFetch(`/api/stocks?shopId=${shopId}`);
+    // 2. Fetch Master Products
+    await loadProducts();
+
+    // 3. Fetch Stocks
+    const stocksRes = await apiFetch(`/api/stocks`);
     state.inventory = stocksRes.data || [];
 
-    // 3. Fetch Activities
+    // 4. Fetch Activities
     await fetchActivities();
 
-    // 4. Fetch Staff if Owner
+    // 5. Fetch Staff if Owner
     if (state.currentUser.role === "owner") {
       try {
-        const usersRes = await apiFetch(`/api/users?shopId=${shopId}`);
+        const usersRes = await apiFetch(`/api/users`);
         state.users = usersRes.data || [];
       } catch (e) {
         state.users = [];
@@ -248,15 +291,38 @@ async function loadShopData() {
 
     renderAll();
   } catch (e) {
-    showToast("Failed to load data from database. " + e.message, "danger");
+    showToast("Failed to load data from database: " + e.message, "danger");
   }
+}
+
+async function loadProducts() {
+  if (!state.currentUser) return;
+  try {
+    const res = await apiFetch(`/api/products`);
+    state.products = res.data || [];
+    populateAddStockProductDropdown();
+    renderProductsTable();
+  } catch (e) {
+    console.error("Failed to load products:", e);
+    state.products = [];
+  }
+}
+
+function populateAddStockProductDropdown() {
+  if (!dom.addStockProductSelect) return;
+  dom.addStockProductSelect.innerHTML = `<option value="">-- Select Product --</option>`;
+  state.products.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.id || p.productId;
+    opt.textContent = `${p.name} (${p.category})`;
+    dom.addStockProductSelect.appendChild(opt);
+  });
 }
 
 async function fetchActivities() {
   if (!state.currentUser) return;
-  const shopId = state.currentUser.shopId;
 
-  let query = `?shopId=${shopId}&sort=${state.sortOrder}`;
+  let query = `?sort=${state.sortOrder}`;
   if (state.activeDate) {
     query += `&date=${state.activeDate}`;
   } else if (state.activePeriod && state.activePeriod !== "all") {
@@ -273,7 +339,9 @@ function showAuthScreen() {
   dom.shopSetupScreen.classList.add("hidden");
   dom.appLayout.classList.add("hidden");
   dom.loginForm.reset();
+  state.token = null;
   state.currentUser = null;
+  localStorage.removeItem("stocktaker_token");
   localStorage.removeItem("stocktaker_session");
 }
 
@@ -303,7 +371,7 @@ function showAppLayout() {
 
 function updateShopTextUI() {
   const shopName = state.shopInfo ? state.shopInfo.name : "My Shop";
-  const shopEmail = state.shopInfo ? state.shopInfo.email : "Not Registered";
+  const shopEmail = state.shopInfo ? state.shopInfo.email : "Registered Shop";
 
   dom.sidebarShopName.textContent = shopName;
   dom.sidebarShopEmail.textContent = shopEmail;
@@ -319,10 +387,8 @@ function applyRolePermissions(role) {
   const ownerElements = document.querySelectorAll(".owner-only");
   if (role === "owner") {
     ownerElements.forEach(el => el.classList.remove("hidden"));
-    if (dom.clearLogsBtn) dom.clearLogsBtn.style.display = "inline-flex";
   } else {
     ownerElements.forEach(el => el.classList.add("hidden"));
-    if (dom.clearLogsBtn) dom.clearLogsBtn.style.display = "none";
   }
 }
 
@@ -340,7 +406,10 @@ function setupEventListeners() {
         body: { username, password }
       });
 
+      state.token = res.data.token;
       state.currentUser = res.data.user;
+
+      localStorage.setItem("stocktaker_token", state.token);
       localStorage.setItem("stocktaker_session", JSON.stringify(state.currentUser));
 
       await loadShopData();
@@ -372,13 +441,19 @@ function setupEventListeners() {
     }
 
     try {
-      await apiFetch("/api/auth/register", {
+      const res = await apiFetch("/api/auth/register", {
         method: "POST",
         body: { shopName, phone, email, ownerUsername, ownerPassword }
       });
 
-      showToast("Shop registered successfully! Please sign in.", "success");
-      showAuthScreen();
+      state.token = res.data.token;
+      state.currentUser = res.data.user;
+      localStorage.setItem("stocktaker_token", state.token);
+      localStorage.setItem("stocktaker_session", JSON.stringify(state.currentUser));
+
+      showToast("Shop registered successfully!", "success");
+      await loadShopData();
+      showAppLayout();
     } catch (err) {
       showToast(err.message || "Registration failed.", "danger");
     }
@@ -444,6 +519,102 @@ function setupEventListeners() {
     }
   });
 
+  // Master Product Form Handler
+  dom.formAddProduct.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = dom.addProductName.value.trim();
+    const category = dom.addProductCategory.value.trim();
+
+    if (!name || !category) {
+      showToast("Product name and category are required.", "warning");
+      return;
+    }
+
+    try {
+      const res = await apiFetch("/api/products", {
+        method: "POST",
+        body: { name, category }
+      });
+
+      showToast(res.message || `Product "${name}" added to master list!`, "success");
+      closeModal("modal-add-product");
+      dom.formAddProduct.reset();
+
+      await loadProducts();
+    } catch (err) {
+      showToast(err.message || "Failed to add product.", "danger");
+    }
+  });
+
+  // Product Selection in Add Stock Form (Auto-fill Category)
+  dom.addStockProductSelect.addEventListener("change", () => {
+    const pId = dom.addStockProductSelect.value;
+    const prod = state.products.find(p => (p.id || p.productId) === pId);
+    if (prod) {
+      dom.addStockCategoryDisplay.value = prod.category;
+    } else {
+      dom.addStockCategoryDisplay.value = "";
+    }
+  });
+
+  // Add Stock Conditional Colour Dropdown Handler
+  dom.addStockColourSelect.addEventListener("change", () => {
+    if (dom.addStockColourSelect.value === "Other") {
+      dom.addStockCustomColourGroup.classList.remove("hidden");
+    } else {
+      dom.addStockCustomColourGroup.classList.add("hidden");
+      dom.addStockCustomColour.value = "";
+    }
+  });
+
+  // Add Stock Conditional Transaction Type Handler
+  dom.addStockTxType.addEventListener("change", () => {
+    const val = dom.addStockTxType.value;
+    if (val === "bill") {
+      dom.addStockBillNoGroup.classList.remove("hidden");
+      dom.addStockChallanNoGroup.classList.add("hidden");
+      dom.addStockChallanNo.value = "";
+    } else if (val === "challan") {
+      dom.addStockChallanNoGroup.classList.remove("hidden");
+      dom.addStockBillNoGroup.classList.add("hidden");
+      dom.addStockBillNo.value = "";
+    } else {
+      dom.addStockBillNoGroup.classList.add("hidden");
+      dom.addStockChallanNoGroup.classList.add("hidden");
+      dom.addStockBillNo.value = "";
+      dom.addStockChallanNo.value = "";
+    }
+  });
+
+  // Sell Stock Conditional Colour Dropdown Handler
+  dom.actionColourSelect.addEventListener("change", () => {
+    if (dom.actionColourSelect.value === "Other") {
+      dom.actionCustomColourGroup.classList.remove("hidden");
+    } else {
+      dom.actionCustomColourGroup.classList.add("hidden");
+      dom.actionCustomColour.value = "";
+    }
+  });
+
+  // Sell Stock Conditional Transaction Type Handler
+  dom.actionTxType.addEventListener("change", () => {
+    const val = dom.actionTxType.value;
+    if (val === "bill") {
+      dom.actionBillNoGroup.classList.remove("hidden");
+      dom.actionChallanNoGroup.classList.add("hidden");
+      dom.actionChallanNo.value = "";
+    } else if (val === "challan") {
+      dom.actionChallanNoGroup.classList.remove("hidden");
+      dom.actionBillNoGroup.classList.add("hidden");
+      dom.actionBillNo.value = "";
+    } else {
+      dom.actionBillNoGroup.classList.add("hidden");
+      dom.actionChallanNoGroup.classList.add("hidden");
+      dom.actionBillNo.value = "";
+      dom.actionChallanNo.value = "";
+    }
+  });
+
   // Catalog Filters & Search
   dom.inventorySearch.addEventListener("input", renderInventory);
   dom.filterCategory.addEventListener("change", renderInventory);
@@ -466,7 +637,7 @@ function setupEventListeners() {
         btn.classList.add("active");
 
         state.activePeriod = btn.getAttribute("data-period");
-        state.activeDate = ""; // Clear specific date picker if period pill clicked
+        state.activeDate = "";
         if (dom.filterTransactionDate) dom.filterTransactionDate.value = "";
         if (dom.clearDateBtn) dom.clearDateBtn.classList.add("hidden");
 
@@ -483,7 +654,6 @@ function setupEventListeners() {
       if (selectedVal) {
         state.activeDate = selectedVal;
         if (dom.clearDateBtn) dom.clearDateBtn.classList.remove("hidden");
-        // Deactivate period pills
         if (dom.periodFiltersContainer) {
           dom.periodFiltersContainer.querySelectorAll(".period-btn").forEach(b => b.classList.remove("active"));
         }
@@ -501,7 +671,6 @@ function setupEventListeners() {
       dom.filterTransactionDate.value = "";
       state.activeDate = "";
       dom.clearDateBtn.classList.add("hidden");
-      // Re-activate 'All' period
       if (dom.periodFiltersContainer) {
         dom.periodFiltersContainer.querySelectorAll(".period-btn").forEach(b => {
           if (b.getAttribute("data-period") === "all") b.classList.add("active");
@@ -514,7 +683,7 @@ function setupEventListeners() {
     });
   }
 
-  // Activity Log Sort Toggle (Newest <-> Oldest)
+  // Activity Log Sort Toggle
   if (dom.sortOrderBtn) {
     dom.sortOrderBtn.addEventListener("click", async () => {
       state.sortOrder = state.sortOrder === "desc" ? "asc" : "desc";
@@ -540,7 +709,7 @@ function setupEventListeners() {
     try {
       await apiFetch("/api/users", {
         method: "POST",
-        body: { username, password, shopId: state.currentUser.shopId }
+        body: { username, password }
       });
 
       showToast(`Staff account "${username}" created!`, "success");
@@ -554,60 +723,70 @@ function setupEventListeners() {
   // Modal Backdrop Close
   dom.modalBackdrop.addEventListener("click", closeAllModals);
 
-  // Add Stock Datalist Autocomplete
-  dom.addStockName.addEventListener("input", () => {
-    const typedName = dom.addStockName.value.trim().toLowerCase();
-    const productExists = state.inventory.some(item => item.name.toLowerCase() === typedName);
-
-    if (typedName.length > 0 && !productExists) {
-      dom.newProductFields.classList.remove("hidden");
-      dom.newProdCategory.required = true;
-    } else {
-      dom.newProductFields.classList.add("hidden");
-      dom.newProdCategory.required = false;
-    }
-  });
-
   // Submit Add Stock Form
   dom.formAddStock.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const name = dom.addStockName.value.trim();
-    const colour = dom.addStockColour.value.trim() || "N/A";
-    const unit = dom.addStockUnit.value.toLowerCase();
-    const qty = parseInt(dom.addStockQty.value, 10);
-    const notes = dom.addStockNotes.value.trim();
-    const location = dom.addStockLocation.value;
-    const ragNumber = dom.addStockRag.value.trim();
-    const category = dom.newProdCategory.value.trim() || "General";
-    const minStock = parseInt(dom.newProdMin.value, 10) || 5;
+    if (state.currentUser.role === "staff") {
+      showToast("Staff accounts are not authorized to add stock.", "danger");
+      return;
+    }
 
-    if (qty <= 0) {
+    const productId = dom.addStockProductSelect.value;
+    if (!productId) {
+      showToast("Please select a product.", "warning");
+      return;
+    }
+
+    const qty = parseInt(dom.addStockQty.value, 10);
+    if (isNaN(qty) || qty <= 0) {
       showToast("Quantity must be greater than 0.", "warning");
       return;
     }
+
+    const colourSelectVal = dom.addStockColourSelect.value;
+    let finalColour = colourSelectVal;
+    let customCol = "";
+    if (colourSelectVal === "Other") {
+      customCol = dom.addStockCustomColour.value.trim();
+    }
+
+    const unit = dom.addStockUnit.value.toLowerCase();
+    const priceVal = dom.addStockPrice.value !== "" ? parseFloat(dom.addStockPrice.value) : null;
+    const brandName = dom.addStockBrand.value.trim();
+    const buyDate = dom.addStockBuyDate.value;
+    const txType = dom.addStockTxType.value;
+    const billNo = dom.addStockBillNo.value.trim();
+    const challanNo = dom.addStockChallanNo.value.trim();
+    const location = dom.addStockLocation.value;
+    const ragNumber = dom.addStockRag.value.trim();
 
     try {
       const res = await apiFetch("/api/stocks", {
         method: "POST",
         body: {
-          shopId: state.currentUser.shopId,
-          name,
-          category,
-          colour,
+          productId,
+          colour: finalColour,
+          customColour: customCol,
           quantity: qty,
           unit,
+          price: priceVal,
+          brandName,
+          buyDate,
+          transactionType: txType,
+          billNo,
+          challanNo,
           location,
-          ragNumber,
-          minStock,
-          notes,
-          user: state.currentUser.username
+          ragNumber
         }
       });
 
-      showToast(res.message || `Added ${qty} ${unit.toUpperCase()} of "${name}".`, "success");
+      showToast(res.message || `Stock added successfully.`, "success");
       closeModal("modal-add-stock");
       dom.formAddStock.reset();
-      dom.newProductFields.classList.add("hidden");
+      dom.addStockCategoryDisplay.value = "";
+      dom.addStockCustomColourGroup.classList.add("hidden");
+      dom.addStockBillNoGroup.classList.add("hidden");
+      dom.addStockChallanNoGroup.classList.add("hidden");
 
       await loadShopData();
     } catch (err) {
@@ -615,7 +794,7 @@ function setupEventListeners() {
     }
   });
 
-  // Submit Stock Action Form (Sell, Damage, Remove)
+  // Submit Stock Action Form (Sell, Damage)
   dom.formStockAction.addEventListener("submit", async (e) => {
     e.preventDefault();
     const itemId = dom.actionItemId.value;
@@ -626,7 +805,7 @@ function setupEventListeners() {
     const item = state.inventory.find(i => i.id === itemId || i.stockId === itemId);
     if (!item) return;
 
-    if (qty <= 0) {
+    if (isNaN(qty) || qty <= 0) {
       showToast("Quantity must be greater than 0.", "warning");
       return;
     }
@@ -637,16 +816,35 @@ function setupEventListeners() {
 
     try {
       let endpoint = `/api/stocks/${item.id || item.stockId}/sell`;
-      if (type === "damage") endpoint = `/api/stocks/${item.id || item.stockId}/defective`;
-      else if (type === "remove") endpoint = `/api/stocks/${item.id || item.stockId}/defective`;
+      let bodyData = { quantity: qty, notes };
+
+      if (type === "sell") {
+        const priceVal = dom.actionPrice.value !== "" ? parseFloat(dom.actionPrice.value) : null;
+        const saleDate = dom.actionSaleDate.value;
+        const brandName = dom.actionBrand.value.trim();
+        const colourSelectVal = dom.actionColourSelect.value;
+        const txType = dom.actionTxType.value;
+        const billNo = dom.actionBillNo.value.trim();
+        const challanNo = dom.actionChallanNo.value.trim();
+
+        bodyData = {
+          ...bodyData,
+          price: priceVal,
+          saleDate,
+          brandName,
+          colour: colourSelectVal,
+          customColour: colourSelectVal === "Other" ? dom.actionCustomColour.value.trim() : "",
+          transactionType: txType,
+          billNo,
+          challanNo
+        };
+      } else if (type === "damage") {
+        endpoint = `/api/stocks/${item.id || item.stockId}/defective`;
+      }
 
       const res = await apiFetch(endpoint, {
         method: "POST",
-        body: {
-          quantity: qty,
-          notes,
-          user: state.currentUser.username
-        }
+        body: bodyData
       });
 
       showToast(res.message || `Stock action recorded for "${item.name}".`, "success");
@@ -659,7 +857,7 @@ function setupEventListeners() {
     }
   });
 
-  // Live Quantity Preview inside Sell/Damage Modal
+  // Live Quantity Preview inside Sell Modal
   dom.actionQty.addEventListener("input", () => {
     const qty = parseInt(dom.actionQty.value, 10) || 0;
     const currentQty = parseInt(dom.actionCurrentQty.textContent, 10) || 0;
@@ -681,87 +879,18 @@ function setupEventListeners() {
 
   // Export CSV
   dom.exportBtn.addEventListener("click", exportInventoryToCSV);
-
-  // Clear Logs
-  dom.clearLogsBtn.addEventListener("click", () => {
-    if (confirm("Are you sure you want to clear all activity logs?")) {
-      state.transactions = [];
-      renderTransactions();
-      showToast("Activity logs cleared locally.", "info");
-    }
-  });
-
-  // Local Storage Data Migration Button Handler
-  if (dom.migrateBtn) {
-    dom.migrateBtn.addEventListener("click", async () => {
-      try {
-        const localShops = JSON.parse(localStorage.getItem("stocktaker_shops") || "[]");
-        const localUsers = JSON.parse(localStorage.getItem("stocktaker_users") || "[]");
-        let localInventory = [];
-        let localTransactions = [];
-
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key.startsWith("stocktaker_inventory_")) {
-            const items = JSON.parse(localStorage.getItem(key) || "[]");
-            const sId = key.replace("stocktaker_inventory_", "");
-            items.forEach(it => { if (!it.shopId) it.shopId = sId; });
-            localInventory = localInventory.concat(items);
-          }
-          if (key.startsWith("stocktaker_transactions_")) {
-            const txs = JSON.parse(localStorage.getItem(key) || "[]");
-            const sId = key.replace("stocktaker_transactions_", "");
-            txs.forEach(t => { if (!t.shopId) t.shopId = sId; });
-            localTransactions = localTransactions.concat(txs);
-          }
-        }
-
-        const res = await apiFetch("/api/migrate", {
-          method: "POST",
-          body: {
-            shops: localShops,
-            users: localUsers,
-            inventory: localInventory,
-            transactions: localTransactions,
-            shopId: state.currentUser ? state.currentUser.shopId : null
-          }
-        });
-
-        showToast(res.message || "LocalStorage data migrated to database!", "success");
-        if (dom.migrationBanner) dom.migrationBanner.classList.add("hidden");
-        await loadShopData();
-      } catch (err) {
-        showToast("Migration failed: " + err.message, "danger");
-      }
-    });
-  }
-}
-
-function checkLocalStorageMigrationNeed() {
-  const hasLocalShops = localStorage.getItem("stocktaker_shops");
-  const hasLocalUsers = localStorage.getItem("stocktaker_users");
-  let hasLocalInv = false;
-
-  for (let i = 0; i < localStorage.length; i++) {
-    if (localStorage.key(i).startsWith("stocktaker_inventory_")) {
-      hasLocalInv = true;
-      break;
-    }
-  }
-
-  if ((hasLocalShops || hasLocalUsers || hasLocalInv) && dom.migrationBanner) {
-    dom.migrationBanner.classList.remove("hidden");
-  }
 }
 
 // ================= BUSINESS FUNCTIONS =================
 window.deleteProduct = async function(id) {
+  if (state.currentUser.role === "staff") return;
+
   const item = state.inventory.find(i => i.id === id || i.stockId === id);
   if (!item) return;
 
   if (confirm(`Delete "${item.name}" from the catalog? This removes the item entirely.`)) {
     try {
-      await apiFetch(`/api/stocks/${item.id || item.stockId}?user=${state.currentUser.username}`, {
+      await apiFetch(`/api/stocks/${item.id || item.stockId}`, {
         method: "DELETE"
       });
       showToast(`"${item.name}" deleted successfully.`, "info");
@@ -773,7 +902,8 @@ window.deleteProduct = async function(id) {
 };
 
 window.deleteStaffMember = async function(username) {
-  if (username === "owner") return;
+  if (state.currentUser.role === "staff") return;
+
   if (confirm(`Remove staff account "@${username}"?`)) {
     try {
       await apiFetch(`/api/users/${username}`, { method: "DELETE" });
@@ -787,6 +917,12 @@ window.deleteStaffMember = async function(username) {
 
 // ================= TAB MANAGEMENT =================
 function switchTab(tabName) {
+  if (state.currentUser && state.currentUser.role === "staff") {
+    if (tabName === "products" || tabName === "staff" || tabName === "settings") {
+      tabName = "dashboard";
+    }
+  }
+
   dom.navLinks.forEach(link => {
     if (link.getAttribute("data-tab") === tabName) link.classList.add("active");
     else link.classList.remove("active");
@@ -804,6 +940,7 @@ function switchTab(tabName) {
   }
 
   if (tabName === "dashboard") renderDashboard();
+  else if (tabName === "products") renderProductsTable();
   else if (tabName === "inventory") renderInventory();
   else if (tabName === "transactions") renderTransactions();
   else if (tabName === "staff") renderStaff();
@@ -828,9 +965,39 @@ function updateThemeUI(theme) {
 // ================= RENDERING LOOPS =================
 function renderAll() {
   renderDashboard();
+  renderProductsTable();
   renderInventory();
   renderTransactions();
   renderStaff();
+}
+
+// 0. Master Products Table
+function renderProductsTable() {
+  if (!dom.productsTableBody) return;
+  dom.productsTableBody.innerHTML = "";
+
+  if (state.products.length === 0) {
+    dom.productsTableBody.innerHTML = `
+      <tr>
+        <td colspan="4" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+          No products created yet. Click "Add Product" to create your first product!
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  state.products.forEach(p => {
+    const createdDate = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "N/A";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td data-label="Product Name"><strong>${p.name}</strong></td>
+      <td data-label="Category"><span class="badge badge-cyan">${p.category}</span></td>
+      <td data-label="Created By"><code>@${p.createdBy || 'system'}</code></td>
+      <td data-label="Date Added"><span class="text-muted">${createdDate}</span></td>
+    `;
+    dom.productsTableBody.appendChild(tr);
+  });
 }
 
 // 1. Dashboard Tab
@@ -868,7 +1035,6 @@ function renderDashboard() {
     `;
   } else {
     lowStockItems.forEach(item => {
-      const isOut = item.quantity === 0;
       const badgeClass = "badge-rose";
       const unitText = (item.unit || "piece").toUpperCase();
 
@@ -906,9 +1072,8 @@ function renderDashboard() {
       let prefix = "";
 
       if (tx.type === "sell") { badgeClass = "badge-emerald"; prefix = "-"; }
-      else if (tx.type === "add") { badgeClass = "badge-violet"; prefix = "+"; }
+      else if (tx.type === "add" || tx.type === "product_add") { badgeClass = "badge-violet"; prefix = "+"; }
       else if (tx.type === "damage") { badgeClass = "badge-rose"; prefix = "-"; }
-      else if (tx.type === "remove") { badgeClass = "badge-rose"; prefix = "-"; }
 
       const timeAgo = formatTimeAgo(new Date(tx.timestamp));
       const unitText = (tx.unit || "piece").toUpperCase();
@@ -937,6 +1102,10 @@ function renderDashboard() {
   dom.quickActionsBar.innerHTML = "";
   if (user.role === "owner") {
     dom.quickActionsBar.innerHTML = `
+      <button class="btn btn-outline" onclick="openAddProductModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+        <span>Add Product</span>
+      </button>
       <button class="btn btn-primary" onclick="openAddStockModal()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         <span>Add Stock</span>
@@ -945,18 +1114,11 @@ function renderDashboard() {
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline></svg>
         <span>Sell Stock</span>
       </button>
-      <button class="btn btn-outline" onclick="triggerQuickAction('damage')">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
-        <span>Damage Stock</span>
-      </button>
     `;
   } else {
+    // Staff role: ONLY Sell Stock available (NO Add Stock!)
     dom.quickActionsBar.innerHTML = `
-      <button class="btn btn-primary" onclick="openAddStockModal()">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>Add Stock</span>
-      </button>
-      <button class="btn btn-outline" onclick="triggerQuickAction('sell')">
+      <button class="btn btn-primary" onclick="triggerQuickAction('sell')">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline></svg>
         <span>Sell Stock</span>
       </button>
@@ -966,8 +1128,7 @@ function renderDashboard() {
 
 window.triggerQuickAction = function(actionType) {
   if (state.inventory.length === 0) {
-    showToast("Please add items to your catalog first.", "warning");
-    openAddStockModal();
+    showToast("No products available in stock catalog.", "warning");
     return;
   }
   openStockActionModal(state.inventory[0].id || state.inventory[0].stockId, actionType);
@@ -1009,31 +1170,18 @@ function renderInventory() {
     dom.filterColour.appendChild(opt);
   });
 
-  // Datlists
-  dom.categorySuggestions.innerHTML = "";
-  categories.forEach(cat => {
-    const opt = document.createElement("option");
-    opt.value = cat;
-    dom.categorySuggestions.appendChild(opt);
-  });
-
-  dom.productNamesDatalist.innerHTML = "";
-  state.inventory.forEach(item => {
-    const opt = document.createElement("option");
-    opt.value = item.name;
-    dom.productNamesDatalist.appendChild(opt);
-  });
-
-  // Multi-Field Search (Name, Category, Colour) & Filters
+  // Multi-Field Search & Filters
   const filteredInventory = state.inventory.filter(item => {
     const nameStr = (item.name || "").toLowerCase();
     const catStr = (item.category || "").toLowerCase();
     const colStr = (item.colour || "").toLowerCase();
+    const brandStr = (item.brandName || "").toLowerCase();
 
     const matchesSearch = !searchQuery || 
                           nameStr.includes(searchQuery) || 
                           catStr.includes(searchQuery) ||
-                          colStr.includes(searchQuery);
+                          colStr.includes(searchQuery) ||
+                          brandStr.includes(searchQuery);
 
     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
     const matchesColour = selectedColour === "all" || (item.colour && item.colour.toLowerCase() === selectedColour.toLowerCase());
@@ -1054,8 +1202,8 @@ function renderInventory() {
   if (filteredInventory.length === 0) {
     dom.inventoryTableBody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
-          No products found matching your search or filters.
+        <td colspan="7" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+          No stock items found matching your search or filters.
         </td>
       </tr>
     `;
@@ -1076,6 +1224,7 @@ function renderInventory() {
 
     const itemId = item.id || item.stockId;
     const unitDisplay = (item.unit || "piece").charAt(0).toUpperCase() + (item.unit || "piece").slice(1);
+    const priceDisplay = item.price !== undefined && item.price !== null && item.price !== "" ? `₹${item.price}` : "-";
 
     let actionButtons = "";
     if (user.role === "owner") {
@@ -1102,6 +1251,7 @@ function renderInventory() {
     tr.innerHTML = `
       <td data-label="Product Name">
         <strong class="product-name-highlight">${item.name}</strong>
+        ${item.brandName ? `<span class="badge badge-cyan" style="margin-left: 6px; font-size: 10px;">${item.brandName}</span>` : ''}
         <div class="product-storage-info">
           <span class="storage-location-badge location-${(item.location || 'Shop').toLowerCase()}">${item.location || 'Shop'}</span>
           ${item.ragNumber ? `<span class="storage-rag-badge">Rag: ${item.ragNumber}</span>` : ''}
@@ -1110,6 +1260,7 @@ function renderInventory() {
       <td data-label="Category"><span class="text-muted">${item.category}</span></td>
       <td data-label="Colour"><span class="colour-pill"><span class="colour-dot"></span>${item.colour || 'N/A'}</span></td>
       <td data-label="Quantity & Unit"><strong>${item.quantity} ${unitDisplay}</strong> <span class="text-muted" style="font-size: 11px;">(min ${item.minStock})</span></td>
+      <td data-label="Price"><strong>${priceDisplay}</strong></td>
       <td data-label="Status"><span class="badge ${statusClass}">${statusText}</span></td>
       <td data-label="Actions" class="table-actions-cell"><div class="table-actions">${actionButtons}</div></td>
     `;
@@ -1130,12 +1281,18 @@ function renderTransactions() {
     const colourStr = (tx.colour || "").toLowerCase();
     const userStr = (tx.user || "").toLowerCase();
     const notesStr = (tx.notes || "").toLowerCase();
+    const billStr = (tx.billNo || "").toLowerCase();
+    const challanStr = (tx.challanNo || "").toLowerCase();
+    const brandStr = (tx.brandName || "").toLowerCase();
 
     const matchesSearch = !searchQuery || 
                           nameStr.includes(searchQuery) ||
                           colourStr.includes(searchQuery) ||
                           userStr.includes(searchQuery) ||
-                          notesStr.includes(searchQuery);
+                          notesStr.includes(searchQuery) ||
+                          billStr.includes(searchQuery) ||
+                          challanStr.includes(searchQuery) ||
+                          brandStr.includes(searchQuery);
 
     const matchesType = selectedType === "all" || tx.type === selectedType;
     return matchesSearch && matchesType;
@@ -1146,7 +1303,7 @@ function renderTransactions() {
   if (filteredTxs.length === 0) {
     dom.transactionsTableBody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
+        <td colspan="6" style="text-align: center; padding: 40px 0; color: var(--text-muted);">
           No activities found for the selected period or filters.
         </td>
       </tr>
@@ -1159,9 +1316,8 @@ function renderTransactions() {
     let prefix = "";
 
     if (tx.type === "sell") { badgeClass = "badge-emerald"; prefix = "-"; }
-    else if (tx.type === "add") { badgeClass = "badge-violet"; prefix = "+"; }
+    else if (tx.type === "add" || tx.type === "product_add") { badgeClass = "badge-violet"; prefix = "+"; }
     else if (tx.type === "damage") { badgeClass = "badge-rose"; prefix = "-"; }
-    else if (tx.type === "remove") { badgeClass = "badge-rose"; prefix = "-"; }
 
     const formattedDate = new Date(tx.timestamp).toLocaleString("en-US", {
       day: '2-digit', month: 'short', year: 'numeric',
@@ -1169,16 +1325,32 @@ function renderTransactions() {
     });
 
     const unitText = (tx.unit || "piece").toUpperCase();
+
+    // Ref & Transaction details snippet
+    let txDetailsHtml = "";
+    if (tx.transactionType) {
+      const typeLabel = tx.transactionType.toUpperCase();
+      let refNo = "";
+      if (tx.transactionType === "bill" && tx.billNo) refNo = ` (${tx.billNo})`;
+      else if (tx.transactionType === "challan" && tx.challanNo) refNo = ` (${tx.challanNo})`;
+      txDetailsHtml += `<div style="font-size: 11px; font-weight: 600; color: var(--accent-cyan); margin-top: 2px;">Type: ${typeLabel}${refNo}</div>`;
+    }
+    if (tx.price !== undefined && tx.price !== null && tx.price !== "") {
+      txDetailsHtml += `<div style="font-size: 11px; color: var(--text-muted);">Price: ₹${tx.price}</div>`;
+    }
+
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
       <td data-label="Timestamp"><span class="text-muted" style="font-size: 12px;">${formattedDate}</span></td>
       <td data-label="Product & Colour">
         <strong>${tx.itemName}</strong>
+        ${tx.brandName ? `<span class="badge badge-cyan" style="margin-left: 4px; font-size: 10px;">${tx.brandName}</span>` : ''}
         <span class="colour-pill" style="margin-left: 6px;"><span class="colour-dot"></span>${tx.colour || 'N/A'}</span>
         ${tx.notes ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${tx.notes}</div>` : ""}
       </td>
       <td data-label="Activity Type"><span class="badge ${badgeClass}">${tx.type}</span></td>
+      <td data-label="Tx Info / Ref">${txDetailsHtml || '<span class="text-muted">-</span>'}</td>
       <td data-label="Quantity Changed"><strong class="${tx.type === 'sell' ? 'text-success' : tx.type === 'damage' ? 'text-danger' : ''}">${prefix}${tx.quantity} ${unitText}</strong></td>
       <td data-label="Logged By"><code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">@${tx.user}</code></td>
     `;
@@ -1220,9 +1392,31 @@ function renderStaff() {
 }
 
 // ================= MODAL MANAGERS =================
+window.openAddProductModal = function() {
+  if (state.currentUser.role === "staff") return;
+  dom.formAddProduct.reset();
+  openModal("modal-add-product");
+};
+
 window.openAddStockModal = function() {
-  dom.newProductFields.classList.add("hidden");
+  if (state.currentUser.role === "staff") {
+    showToast("Staff accounts are not authorized to add stock.", "warning");
+    return;
+  }
   dom.formAddStock.reset();
+  dom.addStockCategoryDisplay.value = "";
+  dom.addStockCustomColourGroup.classList.add("hidden");
+  dom.addStockBillNoGroup.classList.add("hidden");
+  dom.addStockChallanNoGroup.classList.add("hidden");
+
+  populateAddStockProductDropdown();
+
+  if (state.products.length === 0) {
+    showToast("Please add at least one product to master list first.", "info");
+    openAddProductModal();
+    return;
+  }
+
   openModal("modal-add-stock");
 };
 
@@ -1251,21 +1445,26 @@ window.openStockActionModal = function(itemId, actionType) {
   const ragVal = item.ragNumber ? ` (Rag: ${item.ragNumber})` : "";
   if (dom.actionStorageLocation) dom.actionStorageLocation.textContent = `${locVal}${ragVal}`;
 
+  // Reset extra sell fields
+  dom.formStockAction.reset();
+  dom.actionItemId.value = item.id || item.stockId;
+  dom.actionType.value = actionType;
+  dom.actionCustomColourGroup.classList.add("hidden");
+  dom.actionBillNoGroup.classList.add("hidden");
+  dom.actionChallanNoGroup.classList.add("hidden");
+
   if (actionType === "sell") {
     dom.stockActionTitle.textContent = "Sell Stock";
-    dom.actionQtyLabel.textContent = "Selling Quantity";
+    dom.actionQtyLabel.textContent = "Sell Quantity*";
+    dom.sellExtraFields.classList.remove("hidden");
     dom.stockActionSubmitBtn.className = "btn btn-primary";
     dom.stockActionSubmitBtn.textContent = "Complete Sale";
   } else if (actionType === "damage") {
     dom.stockActionTitle.textContent = "Report Defective Stock";
-    dom.actionQtyLabel.textContent = "Defective Quantity";
+    dom.actionQtyLabel.textContent = "Defective Quantity*";
+    dom.sellExtraFields.classList.add("hidden");
     dom.stockActionSubmitBtn.className = "btn btn-primary btn-danger";
     dom.stockActionSubmitBtn.textContent = "Log Defective Stock";
-  } else if (actionType === "remove") {
-    dom.stockActionTitle.textContent = "Remove Stock";
-    dom.actionQtyLabel.textContent = "Quantity to Remove";
-    dom.stockActionSubmitBtn.className = "btn btn-primary btn-danger";
-    dom.stockActionSubmitBtn.textContent = "Remove Stock";
   }
 
   openModal("modal-stock-action");
@@ -1340,7 +1539,7 @@ function exportInventoryToCSV() {
   }
 
   let csvContent = "data:text/csv;charset=utf-8,";
-  csvContent += "Product ID,Product Name,Category,Colour,Quantity,Unit,Min Threshold,Location,Rag Number\n";
+  csvContent += "Product ID,Product Name,Category,Colour,Quantity,Unit,Price,Brand,Location,Rag Number\n";
 
   state.inventory.forEach(item => {
     const row = [
@@ -1350,7 +1549,8 @@ function exportInventoryToCSV() {
       `"${(item.colour || '').replace(/"/g, '""')}"`,
       item.quantity,
       `"${(item.unit || 'piece').replace(/"/g, '""')}"`,
-      item.minStock,
+      item.price !== undefined && item.price !== null ? item.price : "",
+      `"${(item.brandName || '').replace(/"/g, '""')}"`,
       `"${(item.location || 'Shop').replace(/"/g, '""')}"`,
       `"${(item.ragNumber || '').replace(/"/g, '""')}"`
     ].join(",");
