@@ -1767,6 +1767,31 @@ body.light-theme .modal-body {
   margin-bottom: 16px;
 }
 
+/* Additional Helper Styles for New Features */
+.clickable-card {
+  cursor: pointer;
+  user-select: none;
+}
+.clickable-card:hover {
+  transform: translateY(-5px) scale(1.01);
+}
+.modal-lg {
+  max-width: 760px;
+  width: 92%;
+}
+.badge-minus {
+  background: linear-gradient(135deg, #e11d48, #9f1239);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.25);
+}
+.badge-low {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+}
+
 
 
 

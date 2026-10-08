@@ -8,7 +8,7 @@ const stockSchema = new mongoose.Schema({
   category: { type: String, required: true, trim: true },
   colour: { type: String, default: "N/A", trim: true },
   customColour: { type: String, default: "", trim: true },
-  quantity: { type: Number, required: true, min: 0 },
+  quantity: { type: Number, required: true },
   unit: { 
     type: String, 
     required: true, 
@@ -30,6 +30,8 @@ const stockSchema = new mongoose.Schema({
   location: { type: String, default: "Shop" },
   ragNumber: { type: String, default: "" },
   minStock: { type: Number, default: 5 },
+  lowStockAlertEnabled: { type: Boolean, default: false },
+  lowStockThreshold: { type: Number, default: 5 },
   createdBy: { type: String, default: "system" }
 }, {
   timestamps: true

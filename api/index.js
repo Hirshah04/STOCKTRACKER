@@ -169,6 +169,15 @@ function comparePassword(plainPassword, storedHashOrPlain) {
 const ALLOWED_UNITS = ["kg", "litre", "piece", "meter", "set"];
 const ALLOWED_TRANSACTION_TYPES = ["bill", "challan", "cash", ""];
 
+function isFutureDate(dateInput) {
+  if (!dateInput) return false;
+  const inputDate = new Date(dateInput);
+  if (isNaN(inputDate.getTime())) return false;
+  const now = new Date();
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  return inputDate > todayEnd;
+}
+
 // ================= ROUTES =================
 
 // 1. System Health / Status
@@ -612,13 +621,19 @@ app.get('/api/stocks', authenticateToken, async (req, res) => {
         location: doc.location,
         ragNumber: doc.ragNumber,
         minStock: doc.minStock,
+        lowStockAlertEnabled: doc.lowStockAlertEnabled ?? false,
+        lowStockThreshold: doc.lowStockThreshold ?? (doc.minStock || 5),
         createdBy: doc.createdBy,
         createdAt: doc.createdAt,
         updatedAt: doc.updatedAt
       }));
     } else {
       const store = loadLocalStore();
-      items = store.stocks.filter(s => s.shopId === shopId);
+      items = store.stocks.filter(s => s.shopId === shopId).map(s => ({
+        ...s,
+        lowStockAlertEnabled: s.lowStockAlertEnabled ?? false,
+        lowStockThreshold: s.lowStockThreshold ?? (s.minStock || 5)
+      }));
     }
 
     // Search filter (Name, Category, Colour, BrandName)
@@ -748,6 +763,9 @@ app.post('/api/stocks', authenticateToken, requireRole("owner"), async (req, res
     // Parse Buy Date
     let parsedBuyDate = null;
     if (buyDate) {
+      if (isFutureDate(buyDate)) {
+        return apiError(res, "Buy Date cannot be in the future", 400);
+      }
       const d = new Date(buyDate);
       if (!isNaN(d.getTime())) {
         parsedBuyDate = d;
@@ -758,6 +776,8 @@ app.post('/api/stocks', authenticateToken, requireRole("owner"), async (req, res
     const cleanLocation = location || "Shop";
     const cleanRag = ragNumber ? ragNumber.trim() : "";
     const cleanMinStock = minStock !== undefined ? parseInt(minStock, 10) : 5;
+    const cleanLowStockAlert = req.body.lowStockAlertEnabled === true || req.body.lowStockAlertEnabled === "true";
+    const cleanLowStockThreshold = req.body.lowStockThreshold !== undefined ? parseInt(req.body.lowStockThreshold, 10) : cleanMinStock;
 
     let productObj = null;
 
@@ -792,6 +812,8 @@ app.post('/api/stocks', authenticateToken, requireRole("owner"), async (req, res
         if (cleanTxType) stockItem.transactionType = cleanTxType;
         if (finalBillNo) stockItem.billNo = finalBillNo;
         if (finalChallanNo) stockItem.challanNo = finalChallanNo;
+        stockItem.lowStockAlertEnabled = cleanLowStockAlert;
+        stockItem.lowStockThreshold = cleanLowStockThreshold;
         await stockItem.save();
       } else {
         // Create new Stock record
@@ -816,6 +838,8 @@ app.post('/api/stocks', authenticateToken, requireRole("owner"), async (req, res
           location: cleanLocation,
           ragNumber: cleanRag,
           minStock: cleanMinStock,
+          lowStockAlertEnabled: cleanLowStockAlert,
+          lowStockThreshold: cleanLowStockThreshold,
           createdBy: req.user.username
         });
       }
@@ -875,6 +899,8 @@ app.post('/api/stocks', authenticateToken, requireRole("owner"), async (req, res
         if (cleanTxType) stockItem.transactionType = cleanTxType;
         if (finalBillNo) stockItem.billNo = finalBillNo;
         if (finalChallanNo) stockItem.challanNo = finalChallanNo;
+        stockItem.lowStockAlertEnabled = cleanLowStockAlert;
+        stockItem.lowStockThreshold = cleanLowStockThreshold;
       } else {
         const stockId = "p" + Date.now();
         stockItem = {
@@ -897,6 +923,8 @@ app.post('/api/stocks', authenticateToken, requireRole("owner"), async (req, res
           location: cleanLocation,
           ragNumber: cleanRag,
           minStock: cleanMinStock,
+          lowStockAlertEnabled: cleanLowStockAlert,
+          lowStockThreshold: cleanLowStockThreshold,
           createdBy: req.user.username,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -945,7 +973,7 @@ app.put('/api/stocks/:id', authenticateToken, requireRole("owner"), async (req, 
   try {
     const { id } = req.params;
     const shopId = req.user.shopId;
-    const { quantity, unit, price, brandName, colour, location, ragNumber, minStock } = req.body;
+    const { quantity, unit, price, brandName, colour, location, ragNumber, minStock, lowStockAlertEnabled, lowStockThreshold } = req.body;
 
     if (isMongoConnected) {
       const stock = await Stock.findOne({ stockId: id, shopId });
@@ -953,7 +981,7 @@ app.put('/api/stocks/:id', authenticateToken, requireRole("owner"), async (req, 
 
       if (quantity !== undefined) {
         const q = parseInt(quantity, 10);
-        if (isNaN(q) || q < 0) return apiError(res, "Quantity cannot be negative", 400);
+        if (isNaN(q)) return apiError(res, "Invalid quantity", 400);
         stock.quantity = q;
       }
       if (unit) {
@@ -971,6 +999,8 @@ app.put('/api/stocks/:id', authenticateToken, requireRole("owner"), async (req, 
       if (location) stock.location = location;
       if (ragNumber !== undefined) stock.ragNumber = ragNumber;
       if (minStock !== undefined) stock.minStock = parseInt(minStock, 10);
+      if (lowStockAlertEnabled !== undefined) stock.lowStockAlertEnabled = lowStockAlertEnabled === true || lowStockAlertEnabled === "true";
+      if (lowStockThreshold !== undefined) stock.lowStockThreshold = parseInt(lowStockThreshold, 10);
 
       await stock.save();
       return apiSuccess(res, { ...stock.toObject(), id: stock.stockId }, "Stock updated successfully");
@@ -980,7 +1010,7 @@ app.put('/api/stocks/:id', authenticateToken, requireRole("owner"), async (req, 
       if (idx === -1) return apiError(res, "Stock item not found", 404);
 
       const s = store.stocks[idx];
-      if (quantity !== undefined) s.quantity = Math.max(0, parseInt(quantity, 10));
+      if (quantity !== undefined) s.quantity = parseInt(quantity, 10);
       if (unit) s.unit = unit.toLowerCase();
       if (price !== undefined) s.price = parseFloat(price);
       if (brandName !== undefined) s.brandName = brandName;
@@ -988,6 +1018,9 @@ app.put('/api/stocks/:id', authenticateToken, requireRole("owner"), async (req, 
       if (location) s.location = location;
       if (ragNumber !== undefined) s.ragNumber = ragNumber;
       if (minStock !== undefined) s.minStock = parseInt(minStock, 10);
+      if (lowStockAlertEnabled !== undefined) s.lowStockAlertEnabled = lowStockAlertEnabled === true || lowStockAlertEnabled === "true";
+      if (lowStockThreshold !== undefined) s.lowStockThreshold = parseInt(lowStockThreshold, 10);
+      s.updatedAt = new Date().toISOString();
       s.updatedAt = new Date().toISOString();
 
       saveLocalStore(store);
@@ -1100,23 +1133,23 @@ app.post('/api/stocks/:id/sell', authenticateToken, async (req, res) => {
 
     let parsedSaleDate = new Date();
     if (saleDate) {
+      if (isFutureDate(saleDate)) {
+        return apiError(res, "Sale Date cannot be in the future", 400);
+      }
       const d = new Date(saleDate);
       if (!isNaN(d.getTime())) parsedSaleDate = d;
     }
 
     if (isMongoConnected) {
-      // Atomic Update: decrements quantity ONLY if quantity >= sellQty
+      // Atomic Update: decrements quantity (allowing negative stock)
       const stock = await Stock.findOneAndUpdate(
-        { stockId: id, shopId, quantity: { $gte: sellQty } },
+        { stockId: id, shopId },
         { $inc: { quantity: -sellQty } },
         { new: true }
       );
 
       if (!stock) {
-        // Find stock to distinguish between missing and insufficient stock
-        const checkStock = await Stock.findOne({ stockId: id, shopId });
-        if (!checkStock) return apiError(res, "Stock item not found", 404);
-        return apiError(res, `Insufficient stock quantity. Available: ${checkStock.quantity} ${checkStock.unit.toUpperCase()}`, 400);
+        return apiError(res, "Stock item not found", 404);
       }
 
       // Record Activity Log
@@ -1152,10 +1185,6 @@ app.post('/api/stocks/:id/sell', authenticateToken, async (req, res) => {
       const store = loadLocalStore();
       const stock = store.stocks.find(s => (s.id === id || s.stockId === id) && s.shopId === shopId);
       if (!stock) return apiError(res, "Stock item not found", 404);
-
-      if (stock.quantity < sellQty) {
-        return apiError(res, `Insufficient stock quantity. Available: ${stock.quantity} ${stock.unit}`, 400);
-      }
 
       stock.quantity -= sellQty;
       const activityNotes = notes && notes.trim() ? notes.trim() : "Counter sale";

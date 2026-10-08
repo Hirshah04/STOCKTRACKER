@@ -227,7 +227,7 @@
 
           <!-- Stats Grid -->
           <div class="stats-grid">
-            <div class="stat-card card-violet">
+            <div class="stat-card card-violet clickable-card" id="card-stat-unique" title="Click to view unique products summary">
               <div class="stat-icon-wrapper">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
               </div>
@@ -237,33 +237,33 @@
               </div>
             </div>
             
-            <div class="stat-card card-cyan">
+            <div class="stat-card card-cyan" id="card-stat-available">
               <div class="stat-icon-wrapper">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               </div>
               <div class="stat-content">
-                <span class="stat-label">Total Stock Quantity</span>
+                <span class="stat-label">Available Stock</span>
                 <span id="stat-total-qty" class="stat-value">0</span>
               </div>
             </div>
 
-            <div class="stat-card card-emerald">
-              <div class="stat-icon-wrapper">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
-              </div>
-              <div class="stat-content">
-                <span class="stat-label">Items Sold Today</span>
-                <span id="stat-total-sales" class="stat-value">0</span>
-              </div>
-            </div>
-
-            <div class="stat-card card-rose">
+            <div class="stat-card card-rose clickable-card" id="card-stat-low" title="Click to view low stock items">
               <div class="stat-icon-wrapper">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
               </div>
               <div class="stat-content">
-                <span class="stat-label">Low Stock Alerts</span>
+                <span class="stat-label">Low Stock</span>
                 <span id="stat-low-stock" class="stat-value">0</span>
+              </div>
+            </div>
+
+            <div class="stat-card card-rose clickable-card" id="card-stat-minus" title="Click to view minus stock items">
+              <div class="stat-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+              </div>
+              <div class="stat-content">
+                <span class="stat-label">Minus Stock</span>
+                <span id="stat-minus-stock" class="stat-value">0</span>
               </div>
             </div>
           </div>
@@ -349,35 +349,19 @@
           <div class="filters-bar">
             <div class="search-box">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              <input type="text" id="inventory-search" placeholder="Search by name, colour, category, brand...">
+              <input type="text" id="inventory-search" placeholder="Search stock...">
             </div>
-            <div class="filter-dropdowns">
-              <select id="filter-category" class="filter-select">
-                <option value="all">All Categories</option>
-              </select>
-              <select id="filter-colour" class="filter-select">
-                <option value="all">All Colours</option>
-              </select>
-              <select id="filter-unit" class="filter-select">
-                <option value="all">All Units</option>
-                <option value="kg">Kg</option>
-                <option value="litre">Litre</option>
-                <option value="piece">Piece</option>
-                <option value="meter">Meter</option>
-                <option value="set">Set</option>
-              </select>
-              <select id="filter-status" class="filter-select">
-                <option value="all">All Statuses</option>
-                <option value="in-stock">In Stock</option>
-                <option value="low-stock">Low Stock</option>
-                <option value="out-of-stock">Out of Stock</option>
-              </select>
-              <select id="filter-location" class="filter-select">
-                <option value="all">All Locations</option>
-                <option value="Shop">Shop</option>
-                <option value="Godown">Godown</option>
-              </select>
+            <div class="filter-action-wrapper" style="display: flex; align-items: center; gap: 8px;">
+              <button id="btn-open-stock-filters" class="btn btn-outline" type="button">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                <span>Filter</span>
+                <span id="stock-filter-badge" class="badge badge-cyan hidden">0</span>
+              </button>
             </div>
+          </div>
+
+          <div id="stock-filter-results-text" class="text-muted" style="margin-bottom: 12px; font-size: 13px; font-weight: 500;">
+            Showing all products
           </div>
 
           <!-- Inventory Table -->
@@ -699,6 +683,20 @@
             <input type="text" id="add-stock-rag" placeholder="e.g. A-3" autocomplete="off">
           </div>
         </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="add-stock-low-alert-enabled">Enable Low Stock Alert?</label>
+            <select id="add-stock-low-alert-enabled">
+              <option value="false">No</option>
+              <option value="true">Yes</option>
+            </select>
+          </div>
+          <div class="form-group hidden" id="add-stock-low-threshold-group">
+            <label for="add-stock-low-threshold">Low Stock Threshold</label>
+            <input type="number" id="add-stock-low-threshold" value="10" min="0" placeholder="e.g. 10">
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-stock')">Cancel</button>
@@ -814,14 +812,298 @@
 
         <div class="form-group" id="action-notes-group" style="margin-top: 14px;">
           <label for="action-notes">Reason / Notes (Optional)</label>
-          <input type="text" id="action-notes" placeholder="e.g. Counter sale, customer delivery">
+          <input type="text" id="action-notes" placeholder="e.g. Defective item details">
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-stock-action')">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="stock-action-submit-btn">Submit Action</button>
+        <button type="submit" class="btn btn-primary btn-danger" id="stock-action-submit-btn">Log Defective Stock</button>
       </div>
     </form>
+  </div>
+
+  <!-- 3. Dedicated Sell Stock Modal -->
+  <div id="modal-sell-stock" class="modal hidden">
+    <div class="modal-header">
+      <h3>Sell Stock</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-sell-stock')">&times;</button>
+    </div>
+    <form id="form-sell-stock">
+      <div class="modal-body scrollable-modal-body">
+        <!-- Step 1: Select Product Dropdown -->
+        <div class="form-group">
+          <label for="sell-product-select">Select Product*</label>
+          <select id="sell-product-select" required>
+            <option value="">Select Product</option>
+          </select>
+        </div>
+
+        <!-- Step 2: Colour Selection -->
+        <div id="sell-colour-group" class="form-group hidden">
+          <label for="sell-colour-select">Colour</label>
+          <select id="sell-colour-select">
+            <option value="">Select Colour</option>
+          </select>
+          <div id="sell-colour-auto-badge" class="badge badge-cyan hidden" style="margin-top: 6px;">Auto-Selected</div>
+        </div>
+
+        <!-- Step 3: Brand Selection -->
+        <div id="sell-brand-group" class="form-group hidden">
+          <label for="sell-brand-select">Brand</label>
+          <select id="sell-brand-select">
+            <option value="">Select Brand</option>
+          </select>
+          <div id="sell-brand-auto-badge" class="badge badge-cyan hidden" style="margin-top: 6px;">Auto-Selected</div>
+        </div>
+
+        <!-- Step 4: Available Stock Summary Card -->
+        <div id="sell-summary-card" class="product-summary-card hidden">
+          <div class="summary-row">
+            <div>
+              <span class="summary-label">Available Stock:</span>
+              <strong id="sell-available-qty-text" class="summary-value text-success">0 Piece</strong>
+            </div>
+            <div>
+              <span class="summary-label">Category:</span>
+              <strong id="sell-category-text" class="summary-value">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5: Sale Quantity & Live Resulting Stock -->
+        <div class="form-group" style="margin-top: 14px;">
+          <label for="sell-qty-input">Sell Quantity*</label>
+          <div class="input-unit-wrapper">
+            <input type="number" id="sell-qty-input" min="1" required placeholder="Enter quantity">
+            <span id="sell-unit-badge" class="input-unit-badge">Piece</span>
+          </div>
+        </div>
+
+        <div id="sell-resulting-preview" class="action-remaining-preview">
+          <span>Resulting Stock after sale:</span>
+          <strong id="sell-resulting-val">0 Piece</strong>
+        </div>
+
+        <!-- Step 6: Extra Sale Fields -->
+        <div class="form-row" style="margin-top: 14px;">
+          <div class="form-group">
+            <label for="sell-price-input">Price (₹) (Optional)</label>
+            <input type="number" id="sell-price-input" placeholder="e.g. 500" min="0" step="any">
+          </div>
+          <div class="form-group">
+            <label for="sell-date-input">Sale Date (Optional)</label>
+            <input type="date" id="sell-date-input">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="sell-tx-type-input">Transaction Type (Optional)</label>
+          <select id="sell-tx-type-input">
+            <option value="">-- None --</option>
+            <option value="bill">Bill</option>
+            <option value="challan">Challan</option>
+            <option value="cash">Cash</option>
+          </select>
+          <div id="sell-bill-no-group" class="form-group hidden" style="margin-top: 10px;">
+            <label for="sell-bill-no-input">Bill No.</label>
+            <input type="text" id="sell-bill-no-input" placeholder="e.g. INV-1025">
+          </div>
+          <div id="sell-challan-no-group" class="form-group hidden" style="margin-top: 10px;">
+            <label for="sell-challan-no-input">Challan No.</label>
+            <input type="text" id="sell-challan-no-input" placeholder="e.g. CH-5001">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label for="sell-notes-input">Reason / Notes (Optional)</label>
+          <input type="text" id="sell-notes-input" placeholder="e.g. Counter sale, customer delivery">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-sell-stock')">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="sell-submit-btn">Complete Sale</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 4. Minus Stock Products Modal -->
+  <div id="modal-minus-stock" class="modal modal-lg hidden">
+    <div class="modal-header">
+      <h3>Minus Stock Products</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-minus-stock')">&times;</button>
+    </div>
+    <div class="modal-body scrollable-modal-body">
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+        Products currently having negative stock levels (sold more than available stock).
+      </p>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Product Name</th>
+              <th>Colour</th>
+              <th>Brand</th>
+              <th>Current Stock</th>
+              <th>Unit</th>
+            </tr>
+          </thead>
+          <tbody id="minus-stock-table-body">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modal-minus-stock')">Close</button>
+    </div>
+  </div>
+
+  <!-- 5. Low Stock Alerts Modal -->
+  <div id="modal-low-stock" class="modal modal-lg hidden">
+    <div class="modal-header">
+      <h3>Low Stock Products</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-low-stock')">&times;</button>
+    </div>
+    <div class="modal-body scrollable-modal-body">
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+        Products that are currently at or below their configured low stock threshold.
+      </p>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Product Name</th>
+              <th>Available Stock</th>
+              <th>Low Stock Threshold</th>
+              <th>Colour</th>
+              <th>Brand</th>
+            </tr>
+          </thead>
+          <tbody id="low-stock-modal-table-body">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modal-low-stock')">Close</button>
+    </div>
+  </div>
+
+  <!-- 6. Unique Products Summary Modal -->
+  <div id="modal-unique-products" class="modal modal-lg hidden">
+    <div class="modal-header">
+      <h3>Unique Products Summary</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-unique-products')">&times;</button>
+    </div>
+    <div class="modal-body scrollable-modal-body">
+      <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">
+        Overview of unique products and total available stock aggregated by unit.
+      </p>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Product Name</th>
+              <th>Available Stock</th>
+              <th>Unit</th>
+              <th>Variants / Details</th>
+            </tr>
+          </thead>
+          <tbody id="unique-products-table-body">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeModal('modal-unique-products')">Close</button>
+    </div>
+  </div>
+
+  <!-- 7. Stock Catalog Filter Modal -->
+  <div id="modal-stock-filters" class="modal hidden">
+    <div class="modal-header">
+      <h3>Filter Stock Catalog</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-stock-filters')">&times;</button>
+    </div>
+    <div class="modal-body scrollable-modal-body">
+      <div class="form-group">
+        <label for="modal-filter-product">Product</label>
+        <select id="modal-filter-product" class="filter-select">
+          <option value="all">All Products</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="modal-filter-category">Category</label>
+        <select id="modal-filter-category" class="filter-select">
+          <option value="all">All Categories</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="modal-filter-colour">Colour</label>
+          <select id="modal-filter-colour" class="filter-select">
+            <option value="all">All Colours</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="modal-filter-brand">Brand</label>
+          <select id="modal-filter-brand" class="filter-select">
+            <option value="all">All Brands</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="modal-filter-unit">Unit</label>
+          <select id="modal-filter-unit" class="filter-select">
+            <option value="all">All Units</option>
+            <option value="kg">Kg</option>
+            <option value="litre">Litre</option>
+            <option value="piece">Piece</option>
+            <option value="meter">Meter</option>
+            <option value="set">Set</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="modal-filter-tx-type">Transaction Type</label>
+          <select id="modal-filter-tx-type" class="filter-select">
+            <option value="all">All Types</option>
+            <option value="bill">Bill</option>
+            <option value="challan">Challan</option>
+            <option value="cash">Cash</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="modal-filter-status">Stock Status</label>
+          <select id="modal-filter-status" class="filter-select">
+            <option value="all">All Statuses</option>
+            <option value="in-stock">In Stock</option>
+            <option value="low-stock">Low Stock</option>
+            <option value="minus-stock">Minus Stock</option>
+            <option value="out-of-stock">Out of Stock</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="modal-filter-location">Storage Location</label>
+          <select id="modal-filter-location" class="filter-select">
+            <option value="all">All Locations</option>
+            <option value="Shop">Shop</option>
+            <option value="Godown">Godown</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer" style="display: flex; justify-content: space-between;">
+      <button type="button" class="btn btn-outline" id="btn-clear-stock-filters">Clear</button>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-stock-filters')">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btn-apply-stock-filters">Done</button>
+      </div>
+    </div>
   </div>
 
   <!-- Javascript Logic -->
