@@ -1,0 +1,29 @@
+/* ================= PROFILE & SHOP SETTINGS PAGE STYLES (LIGHT THEME) ================= */
+.profile-grid-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.profile-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+.profile-card-header {
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 840px) {
+  .profile-grid-layout {
+    grid-template-columns: 1fr;
+  }
+}

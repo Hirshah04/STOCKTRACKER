@@ -1,0 +1,32 @@
+/* ================= ADD STOCK PAGE STYLES (LIGHT THEME) ================= */
+.add-stock-container {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.add-stock-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+}
+
+.add-stock-card-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.add-stock-form-section {
+  margin-bottom: 24px;
+}
+
+.add-stock-section-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}

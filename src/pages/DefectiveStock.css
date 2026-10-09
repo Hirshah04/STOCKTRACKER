@@ -1,0 +1,20 @@
+/* ================= DEFECTIVE STOCK PAGE STYLES (LIGHT THEME) ================= */
+.defective-stock-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.defective-stock-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 840px) {
+  .defective-stock-layout {
+    grid-template-columns: 1fr;
+  }
+}

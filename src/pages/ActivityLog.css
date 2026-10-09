@@ -1,0 +1,68 @@
+/* ================= ACTIVITY LOG PAGE STYLES (LIGHT THEME) ================= */
+.activity-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.period-filters {
+  display: inline-flex;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  box-shadow: var(--shadow-xs);
+}
+
+.period-btn {
+  background: none;
+  border: none;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.period-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-subtle);
+}
+
+.period-btn.active {
+  background-color: var(--primary);
+  color: var(--text-inverse);
+  box-shadow: 0 1px 2px 0 var(--primary-shadow);
+}
+
+.date-picker-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-picker-box label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .activity-controls-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .period-filters {
+    width: 100%;
+    display: flex;
+  }
+  .period-btn {
+    flex: 1;
+    text-align: center;
+  }
+}

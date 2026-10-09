@@ -6,3 +6,7 @@ node_modules/
 
 # Local fallback store
 data_fallback.json
+
+# Build outputs & Backups
+dist/
+*.bak

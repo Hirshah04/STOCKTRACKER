@@ -19,7 +19,12 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Serve static web app assets when running standalone server locally
-app.use(express.static(path.join(__dirname, '../')));
+const distPath = path.join(__dirname, '../dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+} else {
+  app.use(express.static(path.join(__dirname, '../')));
+}
 
 // Database connection & Local Fallback Store
 const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL || process.env.MONGODB_URI_MONGODB_URI;
@@ -1427,6 +1432,18 @@ app.get('/api/activities', authenticateToken, async (req, res) => {
   } catch (e) {
     return apiError(res, e.message, 500);
   }
+});
+
+// Client SPA routing fallback for non-API routes
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  const distIndex = path.join(__dirname, '../dist/index.html');
+  if (fs.existsSync(distIndex)) {
+    return res.sendFile(distIndex);
+  }
+  return res.sendFile(path.join(__dirname, '../index.html'));
 });
 
 // Export Express App for Vercel Serverless Function & Local server execution

@@ -1,0 +1,51 @@
+/* ================= STOCK CATEGORY / CATALOG PAGE STYLES (LIGHT THEME) ================= */
+.catalog-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.catalog-search-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  max-width: 600px;
+}
+
+.catalog-meta-bar {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.product-name-highlight {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.storage-location-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.storage-location-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.storage-rag-badge {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}

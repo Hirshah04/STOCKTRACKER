@@ -4,15 +4,23 @@
   "description": "Stock Tracker / Inventory Management Website backed by MongoDB API",
   "main": "api/index.js",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "start": "node api/index.js",
-    "dev": "node api/index.js"
+    "server": "node api/index.js"
   },
   "dependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^8.3.0"
+    "lucide-react": "^1.53.0",
+    "mongoose": "^8.3.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vite": "^8.3.4"
   }
 }
