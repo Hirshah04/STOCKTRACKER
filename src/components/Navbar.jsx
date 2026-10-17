@@ -1,12 +1,15 @@
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Menu, LogOut, Database, User } from 'lucide-react';
+import { Menu, LogOut, User } from 'lucide-react';
 
 export function Navbar({
   activeTabTitle = 'Dashboard',
-  onOpenMobileMenu
+  onOpenMobileMenu,
+  onNavigateProfile
 }) {
-  const { user, dbMode, logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  const canNavigateProfile = typeof onNavigateProfile === 'function';
 
   return (
     <header className="top-navbar">
@@ -24,30 +27,16 @@ export function Navbar({
         </h2>
       </div>
 
-       <div className="navbar-right">
-      {/*   DB Status Badge 
+      <div className="navbar-right">
+        {/* User Pill — clickable for owners, static for staff */}
         <div
-          className="badge badge-neutral"
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px' }}
-          title={dbMode === 'mongodb' ? 'Connected to MongoDB Atlas' : 'Running on local file storage'}
-        >
-          <Database size={13} color={dbMode === 'mongodb' ? 'var(--success)' : 'var(--warning)'} />
-          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-            {dbMode === 'mongodb' ? 'MongoDB Atlas' : 'Local Storage'}
-          </span>
-        </div> */}
-
-        {/* User Pill */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '4px 12px',
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-full)',
-            border: '1px solid var(--border-color)'
-          }}
+          className={`navbar-user-pill${canNavigateProfile ? ' clickable' : ''}`}
+          onClick={canNavigateProfile ? onNavigateProfile : undefined}
+          role={canNavigateProfile ? 'button' : undefined}
+          tabIndex={canNavigateProfile ? 0 : undefined}
+          onKeyDown={canNavigateProfile ? (e) => { if (e.key === 'Enter' || e.key === ' ') onNavigateProfile(); } : undefined}
+          title={canNavigateProfile ? 'Go to Profile' : user?.username}
+          aria-label={canNavigateProfile ? 'Open Profile page' : undefined}
         >
           <User size={14} color="var(--primary)" />
           <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>

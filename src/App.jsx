@@ -14,6 +14,7 @@ import './styles/responsive.css';
 // Components
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
+import BottomNavigation from './components/BottomNavigation';
 import LoadingIndicator from './components/LoadingIndicator';
 
 // Pages
@@ -94,6 +95,7 @@ function MainApp() {
         <Navbar
           activeTabTitle={tabTitles[activeTab] || 'Dashboard'}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          onNavigateProfile={isOwner ? () => handleTabChange('profile') : undefined}
         />
 
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -139,6 +141,12 @@ function MainApp() {
             <Profile />
           )}
         </main>
+
+        {/* Mobile bottom navigation — hidden on desktop via CSS */}
+        <BottomNavigation
+          activeTab={activeTab}
+          onSelectTab={handleTabChange}
+        />
       </div>
     </div>
   );

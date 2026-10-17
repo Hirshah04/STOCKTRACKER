@@ -64,9 +64,26 @@
 
 @media (max-width: 640px) {
   .dashboard-stats-grid {
-    grid-template-columns: 1fr;
+    /* 2-column grid on mobile for better density */
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
   }
+
   .dashboard-details-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .dashboard-list-item {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  /* Very small phones: single column stat cards */
+  .dashboard-stats-grid {
     grid-template-columns: 1fr;
   }
 }
+
