@@ -24,8 +24,8 @@ export function Navbar({
         </h2>
       </div>
 
-      <div className="navbar-right">
-        {/* DB Status Badge */}
+       <div className="navbar-right">
+      {/*   DB Status Badge 
         <div
           className="badge badge-neutral"
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px' }}
@@ -35,7 +35,7 @@ export function Navbar({
           <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
             {dbMode === 'mongodb' ? 'MongoDB Atlas' : 'Local Storage'}
           </span>
-        </div>
+        </div> */}
 
         {/* User Pill */}
         <div
