@@ -1,6 +1,8 @@
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Menu, LogOut, User } from 'lucide-react';
+import './Navbar.css';
+
 
 export function Navbar({
   activeTabTitle = 'Dashboard',

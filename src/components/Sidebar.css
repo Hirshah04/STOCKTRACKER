@@ -1,0 +1,66 @@
+/* ================= SIDEBAR COMPONENT STYLES ================= */
+/*
+ * Base sidebar styles live in styles/layout.css (.sidebar, .sidebar-header,
+ * .sidebar-nav, .sidebar-footer, etc.).
+ * This file contains mobile-specific sidebar overrides only.
+ */
+
+/* Mobile — sidebar becomes an off-canvas drawer */
+@media (max-width: 767px) {
+  .sidebar {
+    /* Full height drawer, above everything */
+    width: min(280px, 85vw);
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-xl);
+    z-index: 300;
+    /* Transition for open/close */
+    transition: transform var(--transition-normal);
+    /* Ensure sidebar scrolls if content overflows */
+    overflow-y: auto;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Backdrop overlay when sidebar is open */
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.45);
+    z-index: 299;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  /* Tighter sidebar header on mobile */
+  .sidebar-header {
+    padding: 16px 16px 12px;
+  }
+
+  /* Tighter user card on mobile */
+  .sidebar-user {
+    padding: 10px 16px;
+  }
+
+  /* Tighter db status */
+  .sidebar-db-status {
+    padding: 6px 16px;
+  }
+
+  /* Tighter nav links */
+  .sidebar-nav {
+    padding: 12px 8px;
+    gap: 2px;
+  }
+
+  .sidebar-nav-item {
+    padding: 10px 12px;
+    font-size: 0.9375rem;
+  }
+
+  /* Tighter footer */
+  .sidebar-footer {
+    padding: 12px 16px;
+  }
+}

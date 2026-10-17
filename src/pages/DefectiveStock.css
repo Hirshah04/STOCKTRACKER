@@ -13,8 +13,36 @@
   box-shadow: var(--shadow-sm);
 }
 
+/* Tablet: single column at 840px */
 @media (max-width: 840px) {
   .defective-stock-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile: reduced padding */
+@media (max-width: 767px) {
+  .defective-stock-card {
+    padding: 18px 16px;
+    border-radius: var(--radius-lg);
+  }
+
+  /* Stack submit actions */
+  .defective-stock-card form > div[style*="flex-end"],
+  .defective-stock-card form > div[style*="justify-content"] {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+
+  .defective-stock-card form > div[style*="flex-end"] .btn,
+  .defective-stock-card form > div[style*="justify-content"] .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 374px) {
+  .defective-stock-card {
+    padding: 14px 12px;
   }
 }

@@ -9,6 +9,7 @@
 
 html, body {
   height: 100%;
+  overflow-x: hidden; /* Prevent global horizontal scroll */
 }
 
 body {
@@ -27,20 +28,23 @@ body {
   flex-direction: column;
 }
 
-/* Headings */
+/* Headings — fluid sizing with clamp() for graceful scaling */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   color: var(--text-primary);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.25;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
-h1 { font-size: 1.875rem; }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.25rem; }
-h4 { font-size: 1.125rem; }
+h1 { font-size: clamp(1.25rem, 3.5vw, 1.875rem); }
+h2 { font-size: clamp(1.125rem, 3vw, 1.5rem); }
+h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
+h4 { font-size: clamp(0.9375rem, 2vw, 1.125rem); }
 h5 { font-size: 1rem; }
+
 
 p {
   color: var(--text-secondary);

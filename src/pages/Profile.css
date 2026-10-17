@@ -22,8 +22,30 @@
   justify-content: space-between;
 }
 
+/* Tablet: single column */
 @media (max-width: 840px) {
   .profile-grid-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Mobile: reduced padding */
+@media (max-width: 767px) {
+  .profile-card {
+    padding: 18px 16px;
+    border-radius: var(--radius-lg);
+  }
+
+  .profile-card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+}
+
+@media (max-width: 374px) {
+  .profile-card {
+    padding: 14px 12px;
   }
 }

@@ -12,6 +12,8 @@ import {
   LogOut,
   X
 } from 'lucide-react';
+import './Sidebar.css';
+
 
 export function Sidebar({
   activeTab,

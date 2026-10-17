@@ -1,0 +1,60 @@
+/* ================= NAVBAR COMPONENT STYLES ================= */
+/*
+ * Base navbar styles live in styles/layout.css (.top-navbar, .navbar-left,
+ * .navbar-right, .navbar-user-pill, .mobile-menu-btn).
+ * This file contains mobile-specific navbar overrides only.
+ */
+
+/* Tablet — compact navbar */
+@media (max-width: 1024px) {
+  .top-navbar {
+    padding: 0 20px;
+  }
+}
+
+/* Mobile — slim navbar */
+@media (max-width: 767px) {
+  .top-navbar {
+    height: 52px;
+    padding: 0 12px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+
+  /* Truncate the page title */
+  .top-navbar h2 {
+    font-size: 0.9375rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: clamp(120px, 35vw, 200px);
+  }
+
+  /* Compact the right-side controls */
+  .navbar-right {
+    gap: 8px;
+  }
+
+  /* Hide username text in user pill — keep icon only */
+  .navbar-user-pill span {
+    display: none;
+  }
+
+  /* Tighter pill on mobile */
+  .navbar-user-pill {
+    padding: 5px 8px;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 374px) {
+  .top-navbar {
+    padding: 0 10px;
+  }
+
+  .top-navbar h2 {
+    max-width: 110px;
+    font-size: 0.875rem !important;
+  }
+}

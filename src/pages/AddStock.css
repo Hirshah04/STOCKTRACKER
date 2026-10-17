@@ -30,3 +30,37 @@
   color: var(--text-muted);
   margin-bottom: 14px;
 }
+
+/* ---- Mobile: compact card ---- */
+@media (max-width: 767px) {
+  .add-stock-card {
+    padding: 20px 16px;
+    border-radius: var(--radius-lg);
+  }
+
+  .add-stock-card-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+
+  .add-stock-form-section {
+    margin-bottom: 18px;
+  }
+
+  /* Form submit actions — full width stacked on mobile */
+  .add-stock-card form > div:last-child {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .add-stock-card form > div:last-child .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 374px) {
+  .add-stock-card {
+    padding: 16px 12px;
+  }
+}

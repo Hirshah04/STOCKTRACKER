@@ -76,3 +76,42 @@
   text-decoration: underline;
   color: var(--primary-hover);
 }
+
+/* ---- Mobile: compact auth card ---- */
+@media (max-width: 479px) {
+  .auth-page-container {
+    padding: 16px 12px;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+
+  .auth-card {
+    padding: 24px 20px;
+    border-radius: var(--radius-lg);
+  }
+
+  .auth-card.auth-card-wide {
+    max-width: 100%;
+  }
+
+  .auth-header {
+    margin-bottom: 20px;
+  }
+
+  .auth-header h1 {
+    font-size: 1.25rem;
+  }
+}
+
+/* ---- Very small phones ---- */
+@media (max-width: 374px) {
+  .auth-page-container {
+    padding: 12px 10px;
+    padding-top: 28px;
+  }
+
+  .auth-card {
+    padding: 20px 14px;
+  }
+}
+

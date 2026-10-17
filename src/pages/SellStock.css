@@ -26,6 +26,13 @@
   margin-bottom: 20px;
 }
 
+/* The inline grid inside sell-summary-banner */
+.sell-summary-banner > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
 .sell-preview-banner {
   background-color: var(--bg-subtle);
   border: 1px solid var(--border-color);
@@ -35,4 +42,59 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---- Mobile: compact card ---- */
+@media (max-width: 767px) {
+  .sell-stock-card {
+    padding: 20px 16px;
+    border-radius: var(--radius-lg);
+  }
+
+  .sell-stock-card-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+
+  /* Summary banner: stack to single column on mobile */
+  .sell-summary-banner {
+    padding: 12px 14px;
+  }
+
+  .sell-summary-banner > div {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* Preview banner: allow wrapping */
+  .sell-preview-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  /* Submit actions: full-width stacked */
+  .sell-stock-card form > div[style*="flex-end"] {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+
+  .sell-stock-card form > div[style*="flex-end"] .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 479px) {
+  .sell-summary-banner > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 374px) {
+  .sell-stock-card {
+    padding: 16px 12px;
+  }
 }

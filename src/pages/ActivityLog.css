@@ -44,25 +44,57 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .date-picker-box label {
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-@media (max-width: 768px) {
+/* ---- Mobile ---- */
+@media (max-width: 767px) {
   .activity-controls-bar {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
   }
+
   .period-filters {
     width: 100%;
     display: flex;
   }
+
   .period-btn {
     flex: 1;
     text-align: center;
+    padding: 7px 8px;
+    font-size: 0.75rem;
+  }
+
+  /* Date picker: wrap onto new line */
+  .date-picker-box {
+    gap: 8px;
+    width: 100%;
+  }
+
+  .date-picker-box input[type="date"] {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .date-picker-box label {
+    width: 100%;
+    margin-bottom: 2px;
+  }
+}
+
+@media (max-width: 479px) {
+  .period-btn {
+    padding: 6px 4px;
+    font-size: 0.6875rem;
   }
 }
