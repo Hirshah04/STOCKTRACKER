@@ -292,7 +292,7 @@ export function StockCategory({ onNavigate, onTriggerSell, onTriggerDefective })
           />
           <button
             type="button"
-            className="btn btn-outline"
+            className="btn btn-outline catalog-filter-btn"
             onClick={() => setIsFilterPanelOpen(true)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, position: 'relative' }}
           >

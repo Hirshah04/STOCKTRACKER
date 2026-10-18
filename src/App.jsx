@@ -98,7 +98,7 @@ function MainApp() {
           onNavigateProfile={isOwner ? () => handleTabChange('profile') : undefined}
         />
 
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <main className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, width: '100%', maxWidth: '100%' }}>
           {activeTab === 'dashboard' && (
             <Dashboard onNavigate={handleTabChange} />
           )}

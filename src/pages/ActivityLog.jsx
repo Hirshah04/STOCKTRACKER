@@ -232,34 +232,34 @@ export function ActivityLog() {
         {/* Date Picker Filter */}
         <div className="date-picker-box">
           <label htmlFor="activity-date-filter">Filter by Date:</label>
-          <input
-            id="activity-date-filter"
-            type="date"
-            value={selectedDate}
-            max={getTodayString()}
-            onChange={handleDateChange}
-            className="form-control"
-            style={{ width: 160, height: 36, padding: '4px 10px', fontSize: '0.8125rem' }}
-          />
-          {selectedDate && (
-            <button
-              type="button"
-              className="btn-icon"
-              title="Clear Date"
-              onClick={handleClearDate}
-              style={{ width: 34, height: 34 }}
-            >
-              <X size={14} />
-            </button>
-          )}
+          <div className="date-input-wrapper">
+            <input
+              id="activity-date-filter"
+              type="date"
+              value={selectedDate}
+              max={getTodayString()}
+              onChange={handleDateChange}
+              className="form-control activity-date-input"
+            />
+            {selectedDate && (
+              <button
+                type="button"
+                className="btn-icon clear-date-btn"
+                title="Clear Date"
+                onClick={handleClearDate}
+                aria-label="Clear date"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Sort Order Toggle */}
         <button
           type="button"
-          className="btn btn-outline"
+          className="btn btn-outline activity-sort-btn"
           onClick={toggleSortOrder}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36 }}
         >
           <ArrowUpDown size={15} />
           <span>{sortOrder === 'desc' ? 'Newest → Oldest' : 'Oldest → Newest'}</span>
@@ -267,19 +267,18 @@ export function ActivityLog() {
       </div>
 
       {/* Search and Activity Type Filters */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="activity-search-filter-row">
         <SearchBar
           value={search}
           onChange={setSearch}
           placeholder="Search logs by product, colour, user, bill/challan, or notes..."
         />
 
-        <div style={{ minWidth: 200 }}>
+        <div className="activity-type-select-wrap">
           <select
             value={activityType}
             onChange={(e) => setActivityType(e.target.value)}
             className="form-control"
-            style={{ height: 38, fontSize: '0.875rem' }}
           >
             <option value="all">All Activities</option>
             <option value="product_add">Product Added</option>

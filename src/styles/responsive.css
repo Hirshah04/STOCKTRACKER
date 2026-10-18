@@ -28,9 +28,24 @@
 @media (max-width: 767px) {
 
   /* === LAYOUT === */
+  .app-layout {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
   .main-wrapper {
-    margin-left: 0;
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     min-height: 100dvh;
+  }
+
+  .main-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 
   /* Show the hamburger button */
@@ -42,6 +57,10 @@
   .page-container {
     padding: 14px 14px;
     padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
     /* Prevent horizontal overflow caused by fixed-width child elements */
     overflow-x: hidden;
   }
@@ -148,15 +167,19 @@
   }
 
   /* === TABLES === */
-  /* Mark table containers with clear scroll affordance */
+  /* Contained horizontal scroll area for responsive data tables */
   .table-container {
-    overflow-x: auto;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
     border-radius: var(--radius-md);
+    box-sizing: border-box;
   }
 
   .data-table {
-    min-width: 560px; /* Prevents tables from collapsing to unreadable widths */
+    min-width: 620px; /* Prevents tables from collapsing to unreadable widths */
   }
 
   .data-table th,
@@ -166,7 +189,6 @@
     /* Prevent extremely long single words from breaking layout */
     word-break: break-word;
     overflow-wrap: break-word;
-    max-width: 200px;
   }
 
   .data-table th {
@@ -208,9 +230,27 @@
 
   /* Override the space-between modal footers (FilterPanel) */
   .modal-footer[style*="space-between"],
-  .modal-footer[style*="justify-content"] {
+  .modal-footer[style*="justify-content"],
+  .filter-modal-footer {
     flex-direction: column-reverse !important;
     gap: 8px !important;
+  }
+
+  .filter-modal-actions {
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+
+  .filter-modal-actions .btn {
+    flex: 1 !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  .filter-reset-btn {
+    width: 100% !important;
+    justify-content: center !important;
   }
 
   /* === BADGES & PILLS === */

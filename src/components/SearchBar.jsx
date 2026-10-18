@@ -17,6 +17,7 @@ export function SearchBar({
         alignItems: 'center',
         flex: 1,
         maxWidth: 420,
+        minWidth: 0,
         ...style
       }}
     >

@@ -231,17 +231,17 @@ export function FilterPanel({
           </div>
         </div>
 
-        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="modal-footer filter-modal-footer">
           <button
             type="button"
-            className="btn btn-outline"
+            className="btn btn-outline filter-reset-btn"
             onClick={handleReset}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <RotateCcw size={14} />
             <span>Reset Filters</span>
           </button>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="filter-modal-actions">
             <button
               type="button"
               className="btn btn-outline"

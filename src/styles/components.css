@@ -346,6 +346,16 @@
   gap: 12px;
 }
 
+.filter-modal-footer {
+  justify-content: space-between;
+}
+
+.filter-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;
