@@ -5,11 +5,9 @@ const userSchema = new mongoose.Schema({
   name: { type: String, default: "", trim: true },
   email: { 
     type: String, 
-    required: true, 
-    unique: true, 
     lowercase: true, 
     trim: true,
-    index: true 
+    default: null
   },
   username: { type: String, lowercase: true, trim: true }, // Preserved for backward compatibility
   phone: { type: String, default: "", trim: true },
@@ -37,5 +35,14 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Enforce unique email index via partial filter expression so legacy accounts without email can exist safely
+userSchema.index(
+  { email: 1 }, 
+  { 
+    unique: true, 
+    partialFilterExpression: { email: { $type: "string", $gt: "" } } 
+  }
+);
 
 module.exports = mongoose.models.User || mongoose.model('User', userSchema);

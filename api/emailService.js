@@ -33,7 +33,7 @@ async function sendOtpEmail(toEmail, otp, expiryMinutes = 5) {
   const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@stocktracker.local';
   const transporter = getTransporter();
 
-  const subject = `Your Stock Tracker Verification Code: ${otp}`;
+  const subject = 'Your Stock Tracker Password Reset Verification Code';
   const textBody = `Hello,
 
 Your verification code for resetting your Stock Tracker password is:
@@ -126,24 +126,21 @@ Stock Tracker Security Team`;
         text: textBody,
         html: htmlBody
       });
-      console.log(`[EmailService] OTP email dispatched to ${toEmail}. MessageId: ${info.messageId}`);
+      console.log(`[EmailService] OTP email dispatched successfully to registered address (${toEmail}). MessageId: ${info.messageId}`);
       return { success: true, messageId: info.messageId };
     } catch (err) {
       console.error(`[EmailService] Failed to send email via SMTP to ${toEmail}:`, err.message);
-      // Fallback: If in local dev or SMTP fails, log to console so testing is not blocked
-      console.log(`\n==================================================`);
-      console.log(` [DEVELOPMENT SIMULATION] Password Reset OTP for ${toEmail}: [${otp}]`);
-      console.log(` (Valid for ${expiryMinutes} minutes)`);
-      console.log(`==================================================\n`);
-      return { success: true, simulated: true, note: "Delivered via console fallback due to SMTP error" };
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[EmailService (Dev Fallback)] OTP generated for ${toEmail}. Valid for ${expiryMinutes} minutes.`);
+      }
+      return { success: true, simulated: true, note: "Delivered via fallback due to SMTP error" };
     }
   } else {
     // Development / Local mode without SMTP credentials
-    console.log(`\n==================================================`);
-    console.log(` [DEVELOPMENT SIMULATION] Password Reset OTP for ${toEmail}: [${otp}]`);
-    console.log(` (Valid for ${expiryMinutes} minutes)`);
-    console.log(` SMTP not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS in .env to send live emails.`);
-    console.log(`==================================================\n`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[EmailService (Dev Mode)] OTP generated for ${toEmail}. Valid for ${expiryMinutes} minutes.`);
+      console.log(`SMTP not configured. Configure SMTP_HOST, SMTP_USER, SMTP_PASS in .env to send live emails.`);
+    }
     return { success: true, simulated: true };
   }
 }

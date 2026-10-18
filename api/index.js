@@ -354,12 +354,94 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         userId: user.userId || String(user._id),
         name: user.name || user.username || "User",
-        email: user.email,
+        email: user.email || null,
+        username: user.username,
         role: user.role,
-        shopId: user.shopId
+        shopId: user.shopId,
+        needsEmailSetup: !user.email
       },
       shop: shop ? { id: shop.shopId || shop.id, name: shop.name, phone: shop.phone, email: shop.email } : null
     }, "Login successful");
+  } catch (e) {
+    return apiError(res, e.message, 500);
+  }
+});
+
+// POST /api/auth/setup-email - Safe profile-update flow to collect missing email address for existing accounts
+app.post('/api/auth/setup-email', authenticateToken, async (req, res) => {
+  try {
+    const { email } = req.body;
+    const cleanEmail = normalizeEmail(email);
+
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
+      return apiError(res, "Please provide a valid email address", 400);
+    }
+
+    if (isMongoConnected) {
+      // Check if email is already taken by another account
+      const existing = await User.findOne({
+        email: cleanEmail,
+        _id: { $ne: req.user.userId }
+      });
+      if (existing) {
+        return apiError(res, "This email address is already registered to another account", 400);
+      }
+
+      try {
+        await User.updateOne(
+          { $or: [{ userId: req.user.userId }, { _id: req.user.userId }] },
+          { $set: { email: cleanEmail } }
+        );
+      } catch (err) {
+        if (err.code === 11000) {
+          return apiError(res, "This email address is already registered to another account", 400);
+        }
+        throw err;
+      }
+    } else {
+      const store = loadLocalStore();
+      const duplicate = store.users.find(u => 
+        u.email && u.email.toLowerCase() === cleanEmail && 
+        u.userId !== req.user.userId && u.username !== req.user.username
+      );
+      if (duplicate) {
+        return apiError(res, "This email address is already registered to another account", 400);
+      }
+
+      const idx = store.users.findIndex(u => 
+        (req.user.userId && u.userId === req.user.userId) ||
+        (req.user.username && u.username === req.user.username)
+      );
+      if (idx !== -1) {
+        store.users[idx].email = cleanEmail;
+        saveLocalStore(store);
+      }
+    }
+
+    // Generate updated token with the new email
+    const tokenPayload = {
+      userId: req.user.userId,
+      email: cleanEmail,
+      name: req.user.name,
+      username: req.user.username,
+      role: req.user.role,
+      shopId: req.user.shopId,
+      sessionId: req.user.sessionId
+    };
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
+
+    return apiSuccess(res, {
+      token,
+      user: {
+        userId: req.user.userId,
+        name: req.user.name,
+        email: cleanEmail,
+        username: req.user.username,
+        role: req.user.role,
+        shopId: req.user.shopId,
+        needsEmailSetup: false
+      }
+    }, "Email address registered successfully");
   } catch (e) {
     return apiError(res, e.message, 500);
   }

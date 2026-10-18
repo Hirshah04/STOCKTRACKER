@@ -16,6 +16,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNavigation from './components/BottomNavigation';
 import LoadingIndicator from './components/LoadingIndicator';
+import EmailSetupModal from './components/EmailSetupModal';
 
 // Pages
 import Login from './pages/Login';
@@ -153,6 +154,9 @@ function MainApp() {
           activeTab={activeTab}
           onSelectTab={handleTabChange}
         />
+
+        {/* Modal for legacy accounts missing an email address */}
+        <EmailSetupModal />
       </div>
     </div>
   );

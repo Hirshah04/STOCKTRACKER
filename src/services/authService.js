@@ -63,6 +63,18 @@ export const authService = {
     });
   },
 
+  async setupEmail(email) {
+    const res = await apiRequest('/api/auth/setup-email', {
+      method: 'POST',
+      body: { email }
+    });
+    if (res.data?.token) {
+      localStorage.setItem('stocktaker_token', res.data.token);
+      localStorage.setItem('stocktaker_session', JSON.stringify(res.data.user));
+    }
+    return res;
+  },
+
   async getMe() {
     return apiRequest('/api/auth/me');
   },

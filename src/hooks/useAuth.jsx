@@ -137,6 +137,17 @@ export function AuthProvider({ children }) {
     setShopInfo(updated);
   };
 
+  const setupEmail = async (newEmail) => {
+    const res = await authService.setupEmail(newEmail);
+    if (res.data?.user) {
+      setUser(res.data.user);
+    }
+    if (res.data?.token) {
+      setToken(res.data.token);
+    }
+    return res;
+  };
+
   const isOwner = user?.role === 'owner';
   const isPartner = user?.role === 'partner';
   const isStaff = user?.role === 'staff';
@@ -158,6 +169,7 @@ export function AuthProvider({ children }) {
         clearAuthNotice,
         login,
         register,
+        setupEmail,
         logout,
         fetchShopData,
         updateShopInfoState

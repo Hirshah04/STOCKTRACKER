@@ -12,87 +12,56 @@ function isValidEmail(email) {
 
 async function migrateData() {
   console.log("==================================================");
-  console.log(" Starting Account & Email Uniqueness Migration");
+  console.log(" Safe Account & Email Migration");
+  console.log(" (Preserves all accounts; does NOT invent emails)");
   console.log("==================================================");
 
-  // 1. Migrate Local Fallback JSON
+  // 1. Process Local Fallback Store
   if (fs.existsSync(LOCAL_DB_PATH)) {
     try {
-      console.log(`\nProcessing local store: ${LOCAL_DB_PATH}`);
+      console.log(`\nInspecting local fallback store: ${LOCAL_DB_PATH}`);
       const raw = fs.readFileSync(LOCAL_DB_PATH, 'utf8');
       const store = JSON.parse(raw);
 
       if (!store.users) store.users = [];
       if (!store.shops) store.shops = [];
 
-      const usedEmails = new Set();
-      let migratedCount = 0;
+      let withEmail = 0;
+      let missingEmail = 0;
 
       store.users.forEach((user, idx) => {
-        // Derive or clean email
         let email = (user.email || '').trim().toLowerCase();
         const username = (user.username || '').trim().toLowerCase();
 
-        if (!isValidEmail(email)) {
-          if (isValidEmail(username)) {
-            email = username;
-          } else {
-            // Check associated shop email
-            const shop = store.shops.find(s => s.id === user.shopId || s.shopId === user.shopId);
-            if (shop && isValidEmail(shop.email) && !usedEmails.has(shop.email.toLowerCase())) {
-              email = shop.email.toLowerCase();
-            } else {
-              const safeName = (username || `user_${idx}`).replace(/[^a-z0-9]/g, '');
-              email = `${safeName}@shop.local`;
-            }
-          }
+        // If username is a valid email, adopt it
+        if (!isValidEmail(email) && isValidEmail(username)) {
+          email = username;
         }
 
-        // Resolve collision if email is already taken
-        if (usedEmails.has(email)) {
-          const [userPart, domainPart] = email.split('@');
-          let counter = 1;
-          let candidate = `${userPart}_${counter}@${domainPart}`;
-          while (usedEmails.has(candidate)) {
-            counter++;
-            candidate = `${userPart}_${counter}@${domainPart}`;
-          }
-          console.log(`[Collision Resolved] User "${username}" email changed from "${email}" to "${candidate}"`);
-          email = candidate;
+        // Only keep genuine valid emails; do NOT invent fake ones
+        if (isValidEmail(email)) {
+          user.email = email;
+          withEmail++;
+        } else {
+          user.email = null;
+          missingEmail++;
+          console.log(`[Account Missing Email] Username: "${user.username}" (Role: ${user.role}) - will prompt for email on login`);
         }
 
-        usedEmails.add(email);
-
-        user.email = email;
-        user.name = user.name || user.username || (user.role === 'owner' ? 'Shop Owner' : 'Staff Member');
-        user.userId = user.userId || `user_${Date.now()}_${idx}`;
-        user.role = user.role || 'staff';
+        user.userId = user.userId || `user_${idx}_${Date.now()}`;
+        user.name = user.name || user.username || (user.role === 'owner' ? 'Shop Owner' : 'Team Member');
         user.status = user.status || 'active';
-        user.activeSessionId = user.activeSessionId || null;
         user.phone = user.phone || '';
-        migratedCount++;
-      });
-
-      // Also ensure shops have ownerEmail
-      store.shops.forEach(shop => {
-        if (!shop.ownerEmail) {
-          const ownerUser = store.users.find(u => (u.shopId === (shop.id || shop.shopId)) && u.role === 'owner');
-          if (ownerUser) {
-            shop.ownerEmail = ownerUser.email;
-          } else if (shop.email) {
-            shop.ownerEmail = shop.email.toLowerCase();
-          }
-        }
       });
 
       fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(store, null, 2), 'utf8');
-      console.log(` Successfully migrated ${migratedCount} users in data_fallback.json`);
+      console.log(`\nLocal store check: ${withEmail} accounts with verified email, ${missingEmail} legacy accounts awaiting profile email setup.`);
     } catch (err) {
-      console.error(" Error migrating local store:", err);
+      console.error("Error inspecting local store:", err);
     }
   }
 
-  // 2. Migrate MongoDB Atlas if URI is provided
+  // 2. Process MongoDB Atlas if URI is provided
   const mongoUri = process.env.MONGODB_URI || process.env.DATABASE_URL;
   if (mongoUri && !mongoUri.includes('YOUR_MONGODB_URI')) {
     try {
@@ -102,72 +71,59 @@ async function migrateData() {
 
       const db = mongoose.connection.db;
       const usersCollection = db.collection('users');
-      const shopsCollection = db.collection('shops');
 
       const allUsers = await usersCollection.find({}).toArray();
-      console.log(`Found ${allUsers.length} user records in MongoDB Atlas.`);
+      console.log(`Found ${allUsers.length} total user accounts in MongoDB Atlas.`);
 
-      const usedEmails = new Set();
-      let updatedCount = 0;
+      let mongoWithEmail = 0;
+      let mongoMissingEmail = 0;
 
-      for (let i = 0; i < allUsers.length; i++) {
-        const user = allUsers[i];
+      for (const user of allUsers) {
         let email = (user.email || '').trim().toLowerCase();
         const username = (user.username || '').trim().toLowerCase();
 
-        if (!isValidEmail(email)) {
-          if (isValidEmail(username)) {
-            email = username;
-          } else {
-            const shop = await shopsCollection.findOne({ shopId: user.shopId });
-            if (shop && isValidEmail(shop.email) && !usedEmails.has(shop.email.toLowerCase())) {
-              email = shop.email.toLowerCase();
-            } else {
-              const safeName = (username || `user_${i}`).replace(/[^a-z0-9]/g, '');
-              email = `${safeName}@shop.local`;
-            }
-          }
+        if (!isValidEmail(email) && isValidEmail(username)) {
+          email = username;
         }
 
-        // Resolve collision
-        if (usedEmails.has(email)) {
-          const [userPart, domainPart] = email.split('@');
-          let counter = 1;
-          let candidate = `${userPart}_${counter}@${domainPart}`;
-          while (usedEmails.has(candidate)) {
-            counter++;
-            candidate = `${userPart}_${counter}@${domainPart}`;
-          }
-          console.log(`[Mongo Collision Resolved] User "${username}" email updated to "${candidate}"`);
-          email = candidate;
-        }
-
-        usedEmails.add(email);
-
-        const updateFields = {
-          email,
-          name: user.name || user.username || (user.role === 'owner' ? 'Shop Owner' : 'Staff Member'),
-          userId: user.userId || `user_${user._id}`,
-          role: user.role || 'staff',
+        const updateDoc = {
+          name: user.name || user.username || 'User',
           status: user.status || 'active',
-          activeSessionId: user.activeSessionId || null,
           phone: user.phone || ''
         };
 
-        await usersCollection.updateOne({ _id: user._id }, { $set: updateFields });
-        updatedCount++;
+        if (isValidEmail(email)) {
+          updateDoc.email = email;
+          mongoWithEmail++;
+        } else {
+          updateDoc.email = null;
+          mongoMissingEmail++;
+          console.log(`[Mongo Account Missing Email] Username: "${user.username}" (ID: ${user._id})`);
+        }
+
+        await usersCollection.updateOne({ _id: user._id }, { $set: updateDoc });
       }
 
-      console.log(`Updated ${updatedCount} user documents in MongoDB Atlas.`);
+      console.log(`\nMongoDB Atlas accounts: ${mongoWithEmail} with email, ${mongoMissingEmail} awaiting email collection.`);
 
-      // Ensure Unique Index on email
+      // Drop old standard unique index if it exists to replace with partial unique index
       try {
-        console.log("Creating unique index on { email: 1 }...");
-        await usersCollection.createIndex({ email: 1 }, { unique: true });
-        console.log("Unique index on 'email' confirmed!");
-      } catch (indexErr) {
-        console.warn("Index creation notice:", indexErr.message);
+        await usersCollection.dropIndex('email_1');
+        console.log("Dropped previous standard 'email_1' index to apply safe partial unique index.");
+      } catch (dropErr) {
+        // Index didn't exist or already dropped
       }
+
+      // Create Partial Unique Index on email
+      console.log("Creating partial unique index on { email: 1 } where email exists...");
+      await usersCollection.createIndex(
+        { email: 1 },
+        { 
+          unique: true, 
+          partialFilterExpression: { email: { $type: "string", $gt: "" } } 
+        }
+      );
+      console.log("Partial unique index on email successfully established!");
 
       // Ensure index on shopId
       try {
@@ -175,17 +131,16 @@ async function migrateData() {
       } catch (e) {}
 
       await mongoose.disconnect();
-      console.log("MongoDB migration complete and connection closed.");
+      console.log("MongoDB connection closed.");
     } catch (mongoErr) {
-      console.warn("MongoDB Atlas migration skipped or failed:", mongoErr.message);
-      console.log("Run this migration again when MONGODB_URI is reachable.");
+      console.warn("MongoDB migration error / skipped:", mongoErr.message);
     }
   } else {
-    console.log("\nMONGODB_URI not set. Run `npm run migrate` with MONGODB_URI in .env to migrate MongoDB Atlas.");
+    console.log("\nMONGODB_URI not set. Run `npm run migrate` with MONGODB_URI in .env when ready to apply to Atlas.");
   }
 
   console.log("\n==================================================");
-  console.log(" Account & Email Uniqueness Migration Finished");
+  console.log(" Account & Email Migration Complete");
   console.log("==================================================\n");
 }
 
