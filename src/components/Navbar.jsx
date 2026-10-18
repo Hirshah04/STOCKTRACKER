@@ -37,12 +37,12 @@ export function Navbar({
           role={canNavigateProfile ? 'button' : undefined}
           tabIndex={canNavigateProfile ? 0 : undefined}
           onKeyDown={canNavigateProfile ? (e) => { if (e.key === 'Enter' || e.key === ' ') onNavigateProfile(); } : undefined}
-          title={canNavigateProfile ? 'Go to Profile' : user?.username}
+          title={canNavigateProfile ? 'Go to Profile' : (user?.name || user?.email || user?.username)}
           aria-label={canNavigateProfile ? 'Open Profile page' : undefined}
         >
           <User size={14} color="var(--primary)" />
           <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            {user?.username}
+            {user?.name || user?.email || user?.username}
           </span>
         </div>
 

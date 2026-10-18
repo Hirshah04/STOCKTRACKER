@@ -6,21 +6,24 @@
       "name": "Test Cotton Mills",
       "phone": "+1 555-9876",
       "email": "contact@testcotton.com",
-      "ownerUsername": "testowner_1790918149662"
+      "ownerUsername": "testowner_1790918149662",
+      "ownerEmail": "contact@testcotton.com"
     },
     {
       "id": "shop_1782880683533",
       "name": "MM",
       "phone": "1234567890",
       "email": "shahhir0408@gmail.com",
-      "ownerUsername": "shahhir0408@gmail.com"
+      "ownerUsername": "shahhir0408@gmail.com",
+      "ownerEmail": "shahhir0408@gmail.com"
     },
     {
       "id": "shop_1782880930656",
       "name": "Bhagyesh",
       "phone": "314569870",
       "email": "22004500210225@ljku.edu.in",
-      "ownerUsername": "bas"
+      "ownerUsername": "bas",
+      "ownerEmail": "22004500210225@ljku.edu.in"
     },
     {
       "id": "shop_1791468867733",
@@ -28,7 +31,8 @@
       "name": "Test Shop 1791468867487",
       "phone": "1234567890",
       "email": "test@shop.com",
-      "ownerUsername": "test_owner_1791468867487"
+      "ownerUsername": "test_owner_1791468867487",
+      "ownerEmail": "test@shop.com"
     },
     {
       "id": "shop_1791478926615",
@@ -36,7 +40,8 @@
       "name": "Test Shop",
       "phone": "1234567890",
       "email": "test@shop.com",
-      "ownerUsername": "testowner_1791478926263"
+      "ownerUsername": "testowner_1791478926263",
+      "ownerEmail": "testowner1791478926263@shop.local"
     },
     {
       "id": "shop_1791479071150",
@@ -44,7 +49,8 @@
       "name": "Test Shop",
       "phone": "1234567890",
       "email": "test@shop.com",
-      "ownerUsername": "testowner_1791479071132"
+      "ownerUsername": "testowner_1791479071132",
+      "ownerEmail": "testowner1791479071132@shop.local"
     },
     {
       "id": "shop_1791518362925",
@@ -52,7 +58,8 @@
       "name": "Test Shop",
       "phone": "1234567890",
       "email": "test@shop.com",
-      "ownerUsername": "testowner_1791518362765"
+      "ownerUsername": "testowner_1791518362765",
+      "ownerEmail": "testowner1791518362765@shop.local"
     },
     {
       "id": "shop_1791519457230",
@@ -60,7 +67,8 @@
       "name": "Test Shop",
       "phone": "1234567890",
       "email": "test@shop.com",
-      "ownerUsername": "testowner_1791519457218"
+      "ownerUsername": "testowner_1791519457218",
+      "ownerEmail": "testowner1791519457218@shop.local"
     },
     {
       "id": "shop_1791519513096",
@@ -68,7 +76,8 @@
       "name": "Metro Store 1791519513087",
       "phone": "9876543210",
       "email": "metro_1791519513087@test.com",
-      "ownerUsername": "testowner_1791519513087"
+      "ownerUsername": "testowner_1791519513087",
+      "ownerEmail": "metro_1791519513087@test.com"
     },
     {
       "id": "shop_1791519548987",
@@ -76,7 +85,8 @@
       "name": "Metro Store 1791519548978",
       "phone": "9876543210",
       "email": "metro_1791519548978@test.com",
-      "ownerUsername": "testowner_1791519548978"
+      "ownerUsername": "testowner_1791519548978",
+      "ownerEmail": "metro_1791519548978@test.com"
     },
     {
       "id": "shop_1791519593184",
@@ -84,7 +94,8 @@
       "name": "Metro Store 1791519593173",
       "phone": "9876543210",
       "email": "metro_1791519593173@test.com",
-      "ownerUsername": "testowner_1791519593173"
+      "ownerUsername": "testowner_1791519593173",
+      "ownerEmail": "metro_1791519593173@test.com"
     },
     {
       "id": "shop_1791519719446",
@@ -92,7 +103,8 @@
       "name": "Metro Store 1791519719434",
       "phone": "9876543210",
       "email": "metro_1791519719434@test.com",
-      "ownerUsername": "testowner_1791519719434"
+      "ownerUsername": "testowner_1791519719434",
+      "ownerEmail": "metro_1791519719434@test.com"
     },
     {
       "id": "shop_1791519752248",
@@ -100,7 +112,8 @@
       "name": "Test Shop 1791519752204",
       "phone": "1234567890",
       "email": "test@shop.com",
-      "ownerUsername": "test_owner_1791519752204"
+      "ownerUsername": "test_owner_1791519752204",
+      "ownerEmail": "testowner1791519752204@shop.local"
     },
     {
       "id": "shop_1791519841278",
@@ -108,7 +121,8 @@
       "name": "Test Shop",
       "phone": "1234567890",
       "email": "test@shop.com",
-      "ownerUsername": "testowner_1791519841269"
+      "ownerUsername": "testowner_1791519841269",
+      "ownerEmail": "testowner1791519841269@shop.local"
     },
     {
       "id": "shop_1791519842002",
@@ -116,7 +130,35 @@
       "name": "Metro Store 1791519841990",
       "phone": "9876543210",
       "email": "metro_1791519841990@test.com",
-      "ownerUsername": "testowner_1791519841990"
+      "ownerUsername": "testowner_1791519841990",
+      "ownerEmail": "metro_1791519841990@test.com"
+    },
+    {
+      "id": "shop_1792298685063",
+      "shopId": "shop_1792298685063",
+      "name": "Apex Retailers",
+      "phone": "1234567890",
+      "email": "testowner_1792298684241@testshop.com",
+      "ownerEmail": "testowner_1792298684241@testshop.com",
+      "ownerUsername": "testowner_1792298684241"
+    },
+    {
+      "id": "shop_1792298757797",
+      "shopId": "shop_1792298757797",
+      "name": "Apex Retailers",
+      "phone": "1234567890",
+      "email": "testowner_1792298757735@testshop.com",
+      "ownerEmail": "testowner_1792298757735@testshop.com",
+      "ownerUsername": "testowner_1792298757735"
+    },
+    {
+      "id": "shop_1792298851197",
+      "shopId": "shop_1792298851197",
+      "name": "Apex Retailers",
+      "phone": "1234567890",
+      "email": "testowner_1792298851150@testshop.com",
+      "ownerEmail": "testowner_1792298851150@testshop.com",
+      "ownerUsername": "testowner_1792298851150"
     }
   ],
   "users": [
@@ -124,139 +166,383 @@
       "username": "testowner_1790918149662",
       "password": "password123",
       "role": "owner",
-      "shopId": "shop_1790918150228"
+      "shopId": "shop_1790918150228",
+      "email": "contact@testcotton.com",
+      "name": "testowner_1790918149662",
+      "userId": "user_1792297964525_0",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "shahhir0408@gmail.com",
       "password": "12345678",
       "role": "owner",
-      "shopId": "shop_1782880683533"
+      "shopId": "shop_1782880683533",
+      "email": "shahhir0408@gmail.com",
+      "name": "shahhir0408@gmail.com",
+      "userId": "user_1792297964525_1",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "hir",
       "password": "hir123",
       "role": "staff",
-      "shopId": "shop_1782880683533"
+      "shopId": "shop_1782880683533",
+      "email": "hir@shop.local",
+      "name": "hir",
+      "userId": "user_1792297964525_2",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "bas",
       "password": "BAS123",
       "role": "owner",
-      "shopId": "shop_1782880930656"
+      "shopId": "shop_1782880930656",
+      "email": "22004500210225@ljku.edu.in",
+      "name": "bas",
+      "userId": "user_1792297964525_3",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "test_owner_1791468867487",
       "password": "$2b$10$RaAisOXr/S0ufwSYiS.4x.9Ffep0cbkaZ7dzRBJHmu4nHZSWDI6zW",
       "role": "owner",
-      "shopId": "shop_1791468867733"
+      "shopId": "shop_1791468867733",
+      "email": "test@shop.com",
+      "name": "test_owner_1791468867487",
+      "userId": "user_1792297964525_4",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "test_staff_1791468867487",
       "password": "$2b$10$nn3LEsNZ/ebxL3QsspUp/./kx0gSmgOPQjJ6D/nflSKaJ2bz2oe7a",
       "role": "staff",
-      "shopId": "shop_1791468867733"
+      "shopId": "shop_1791468867733",
+      "email": "teststaff1791468867487@shop.local",
+      "name": "test_staff_1791468867487",
+      "userId": "user_1792297964525_5",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791478926263",
       "password": "$2b$10$emV6sRoWIRCqJNF9ad9WpetL5UZ2z6Z56iTmAPD.Szc78tXfup/cK",
       "role": "owner",
-      "shopId": "shop_1791478926615"
+      "shopId": "shop_1791478926615",
+      "email": "testowner1791478926263@shop.local",
+      "name": "testowner_1791478926263",
+      "userId": "user_1792297964525_6",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791479071132",
       "password": "$2b$10$kKeCUNbxl95.qk5vO9L7eeZP1jxOILCf10cF3Jd785dEUsqK9e3WW",
       "role": "owner",
-      "shopId": "shop_1791479071150"
+      "shopId": "shop_1791479071150",
+      "email": "testowner1791479071132@shop.local",
+      "name": "testowner_1791479071132",
+      "userId": "user_1792297964525_7",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791518362765",
       "password": "$2b$10$PVTkxn4lkoMPFBq5p0afVunsJZfyHVEPMsRLTWZ4/xF/lVKbcQBHq",
       "role": "owner",
-      "shopId": "shop_1791518362925"
+      "shopId": "shop_1791518362925",
+      "email": "testowner1791518362765@shop.local",
+      "name": "testowner_1791518362765",
+      "userId": "user_1792297964525_8",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791519457218",
       "password": "$2b$10$5by3Or/SxJuhpHvzgJEyAe2l9.uzdWJYXOt5yHn/QValgFmi53tTi",
       "role": "owner",
-      "shopId": "shop_1791519457230"
+      "shopId": "shop_1791519457230",
+      "email": "testowner1791519457218@shop.local",
+      "name": "testowner_1791519457218",
+      "userId": "user_1792297964525_9",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791519513087",
       "password": "$2b$10$/cRInB10deKJxtb75YBg3e59A5bK3astmOWvhwdReyad/Bayk.zc.",
       "role": "owner",
-      "shopId": "shop_1791519513096"
+      "shopId": "shop_1791519513096",
+      "email": "metro_1791519513087@test.com",
+      "name": "testowner_1791519513087",
+      "userId": "user_1792297964525_10",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "staff_1791519513087",
       "password": "$2b$10$NA1z3FzcVI9vn5ViUnbg1.i5mNpCQziBheLn0uJ/jUNKum4SQlNnW",
       "role": "staff",
-      "shopId": "shop_1791519513096"
+      "shopId": "shop_1791519513096",
+      "email": "staff1791519513087@shop.local",
+      "name": "staff_1791519513087",
+      "userId": "user_1792297964525_11",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791519548978",
       "password": "$2b$10$5jeYpmxq6cfHza2KZJdd.OclsYomSKO8z/jZN0fTHuRFuxCFLwXNC",
       "role": "owner",
-      "shopId": "shop_1791519548987"
+      "shopId": "shop_1791519548987",
+      "email": "metro_1791519548978@test.com",
+      "name": "testowner_1791519548978",
+      "userId": "user_1792297964525_12",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "staff_1791519548978",
       "password": "$2b$10$iJ50HJQYk.pdjkSra4exoO2A.oFOSXmQJR2qf4AQemXd6sMAgUgNa",
       "role": "staff",
-      "shopId": "shop_1791519548987"
+      "shopId": "shop_1791519548987",
+      "email": "staff1791519548978@shop.local",
+      "name": "staff_1791519548978",
+      "userId": "user_1792297964525_13",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791519593173",
       "password": "$2b$10$2e4Bn8vrodDdF//oyX4DbuN42uBykdUXywWnVaqyLjvojRJFk97cu",
       "role": "owner",
-      "shopId": "shop_1791519593184"
+      "shopId": "shop_1791519593184",
+      "email": "metro_1791519593173@test.com",
+      "name": "testowner_1791519593173",
+      "userId": "user_1792297964525_14",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "staff_1791519593173",
       "password": "$2b$10$mDn3dRx6RyFbZRu78G5X9OHRNm2Vgi.t0jShqSnJxHD8cItMn6BNu",
       "role": "staff",
-      "shopId": "shop_1791519593184"
+      "shopId": "shop_1791519593184",
+      "email": "staff1791519593173@shop.local",
+      "name": "staff_1791519593173",
+      "userId": "user_1792297964525_15",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791519719434",
       "password": "$2b$10$9NSwd4UAAGz/feLumz9PvuvsMGp.kyeB.E0VDqBNInOsmOO3iWCrW",
       "role": "owner",
-      "shopId": "shop_1791519719446"
+      "shopId": "shop_1791519719446",
+      "email": "metro_1791519719434@test.com",
+      "name": "testowner_1791519719434",
+      "userId": "user_1792297964525_16",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "staff_1791519719434",
       "password": "$2b$10$8DjkuhmETVaI2vmvZseVs.VCwKiVwC9VCYiyfaWTq9jUA/ctT24pm",
       "role": "staff",
-      "shopId": "shop_1791519719446"
+      "shopId": "shop_1791519719446",
+      "email": "staff1791519719434@shop.local",
+      "name": "staff_1791519719434",
+      "userId": "user_1792297964526_17",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "test_owner_1791519752204",
       "password": "$2b$10$dNnGk0nalPCUwsgtKiiMHeunCNH9H6yaLP2np8.ixyCqu4qBFefWa",
       "role": "owner",
-      "shopId": "shop_1791519752248"
+      "shopId": "shop_1791519752248",
+      "email": "testowner1791519752204@shop.local",
+      "name": "test_owner_1791519752204",
+      "userId": "user_1792297964526_18",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "test_staff_1791519752204",
       "password": "$2b$10$oldLArqscZZ7zFj0nd0ZBu7T5bOm1Eg1V4KFNWo0A2KwqCXA3Jmka",
       "role": "staff",
-      "shopId": "shop_1791519752248"
+      "shopId": "shop_1791519752248",
+      "email": "teststaff1791519752204@shop.local",
+      "name": "test_staff_1791519752204",
+      "userId": "user_1792297964526_19",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791519841269",
       "password": "$2b$10$ACgpOaV1j6KsSA505mlPgeqGAsAhJwfiJFOqiu9KPBvQCiJ1GNumS",
       "role": "owner",
-      "shopId": "shop_1791519841278"
+      "shopId": "shop_1791519841278",
+      "email": "testowner1791519841269@shop.local",
+      "name": "testowner_1791519841269",
+      "userId": "user_1792297964526_20",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "testowner_1791519841990",
       "password": "$2b$10$nkNIdXO.gDSiBzRRlhAj4Ok0765WUWHwllp5e3f0EB7uuNOKqOqMG",
       "role": "owner",
-      "shopId": "shop_1791519842002"
+      "shopId": "shop_1791519842002",
+      "email": "metro_1791519841990@test.com",
+      "name": "testowner_1791519841990",
+      "userId": "user_1792297964526_21",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
     },
     {
       "username": "staff_1791519841990",
       "password": "$2b$10$sMhnybYG4D2hbeA7eoeF0OMKSYwGWxX2j4FouBzc4gUJrth9cdr9G",
       "role": "staff",
-      "shopId": "shop_1791519842002"
+      "shopId": "shop_1791519842002",
+      "email": "staff1791519841990@shop.local",
+      "name": "staff_1791519841990",
+      "userId": "user_1792297964526_22",
+      "status": "active",
+      "activeSessionId": null,
+      "phone": ""
+    },
+    {
+      "userId": "user_1792298685063",
+      "name": "Alice Owner",
+      "email": "testowner_1792298684241@testshop.com",
+      "username": "testowner_1792298684241",
+      "phone": "1234567890",
+      "password": "$2b$10$YGtU.yr9VccJjUNnx6BfEula75gbBu6hwLpTupiH0TjJp451JhP6K",
+      "role": "owner",
+      "shopId": "shop_1792298685063",
+      "status": "active",
+      "activeSessionId": "a185d91c-f302-4732-91f2-58f320c5d8b4",
+      "otpHash": "$2b$10$jmXg9u2hFg3BUa/bkVbI0Ov0YsTYhclUQI0BowCkGjxxOP25iTveC",
+      "otpExpires": "2026-10-18T04:49:45.588Z",
+      "otpAttempts": 0,
+      "otpLastSentAt": "2026-10-18T04:44:45.588Z",
+      "resetTokenHash": null,
+      "resetTokenExpires": null
+    },
+    {
+      "userId": "user_1792298757797",
+      "name": "Alice Owner",
+      "email": "testowner_1792298757735@testshop.com",
+      "username": "testowner_1792298757735",
+      "phone": "1234567890",
+      "password": "$2b$10$EURXZK2PbiXg9E.crG1sK.kvjU01GGtEleWCx468De/kKINL1UMou",
+      "role": "owner",
+      "shopId": "shop_1792298757797",
+      "status": "active",
+      "activeSessionId": "18eff3b0-d2f6-434d-9e44-a5b478124726",
+      "otpHash": null,
+      "otpExpires": null,
+      "otpAttempts": 0,
+      "otpLastSentAt": "2026-10-18T04:45:58.256Z",
+      "resetTokenHash": null,
+      "resetTokenExpires": null
+    },
+    {
+      "id": "user_1792298759273",
+      "userId": "user_1792298759273",
+      "name": "Bob Partner",
+      "email": "partner_1792298757735@testshop.com",
+      "username": "partner_1792298757735",
+      "phone": "+1 555-0122",
+      "password": "$2b$10$4RoNCxVqJt7kjTmWEGf2VuyW4iVYONqCWT1MPpI4wPY3H/hj9.HZe",
+      "role": "partner",
+      "shopId": "shop_1792298757797",
+      "status": "active",
+      "activeSessionId": "8465c41d-e9e2-492a-8bc7-351db4551e16"
+    },
+    {
+      "id": "user_1792298759569",
+      "userId": "user_1792298759569",
+      "name": "Charlie Staff",
+      "email": "staff_1792298757735@testshop.com",
+      "username": "staff_1792298757735",
+      "phone": "+1 555-0133",
+      "password": "$2b$10$256jzWVEuVClLXuD1CT3POiTWm.NoxEF6V0mxuApM7EtCFZDQv7x2",
+      "role": "staff",
+      "shopId": "shop_1792298757797",
+      "status": "active",
+      "activeSessionId": "cbf56448-0ada-4dba-955f-761155455d94"
+    },
+    {
+      "userId": "user_1792298851197",
+      "name": "Alice Owner",
+      "email": "testowner_1792298851150@testshop.com",
+      "username": "testowner_1792298851150",
+      "phone": "1234567890",
+      "password": "$2b$10$HKtbU8cznLVODORbZrBtcusEUu/EawpF9LfDndzVo4FVOoMZFAfei",
+      "role": "owner",
+      "shopId": "shop_1792298851197",
+      "status": "active",
+      "activeSessionId": "65dec9a6-b849-485a-ab1f-19ffad6456ef",
+      "otpHash": null,
+      "otpExpires": null,
+      "otpAttempts": 0,
+      "otpLastSentAt": "2026-10-18T04:47:31.768Z",
+      "resetTokenHash": null,
+      "resetTokenExpires": null
+    },
+    {
+      "id": "user_1792298852908",
+      "userId": "user_1792298852908",
+      "name": "Bob Partner",
+      "email": "partner_1792298851150@testshop.com",
+      "username": "partner_1792298851150",
+      "phone": "+1 555-0122",
+      "password": "$2b$10$9X7qI.ePd4c0zJYERv69c.c9M6EcmjLi/T00O6XGiHfP2nhNhRsVW",
+      "role": "partner",
+      "shopId": "shop_1792298851197",
+      "status": "active",
+      "activeSessionId": "ec34f443-da1d-4fed-8766-3ce5cc277c4c"
+    },
+    {
+      "id": "user_1792298853222",
+      "userId": "user_1792298853222",
+      "name": "Charlie Staff",
+      "email": "staff_1792298851150@testshop.com",
+      "username": "staff_1792298851150",
+      "phone": "+1 555-0133",
+      "password": "$2b$10$PdTRJzkhv4G5Vk99oxt4cut9lUTIPPb3c7yall1xEl3ZB49IWE/yS",
+      "role": "staff",
+      "shopId": "shop_1792298851197",
+      "status": "active",
+      "activeSessionId": "d108c601-d753-4423-af82-061974e4306e"
     }
   ],
   "stocks": [
@@ -807,9 +1093,211 @@
       "createdBy": "testowner_1791519841990",
       "createdAt": "2026-10-09T04:24:02.253Z",
       "updatedAt": "2026-10-09T04:24:02.253Z"
+    },
+    {
+      "id": "p1792298759422",
+      "stockId": "p1792298759422",
+      "shopId": "shop_1792298757797",
+      "productId": "prod_1792298759410_s2t8",
+      "name": "Organic Cotton Yarn 1792298757735",
+      "category": "Textiles",
+      "colour": "White",
+      "customColour": "",
+      "quantity": 50,
+      "unit": "meter",
+      "price": 25.5,
+      "brandName": "PureCotton",
+      "buyDate": null,
+      "transactionType": "",
+      "billNo": "",
+      "challanNo": "",
+      "location": "Shop",
+      "ragNumber": "",
+      "minStock": 5,
+      "lowStockAlertEnabled": false,
+      "lowStockThreshold": 5,
+      "createdBy": "partner_1792298757735",
+      "createdAt": "2026-10-18T04:45:59.422Z",
+      "updatedAt": "2026-10-18T04:45:59.422Z"
+    },
+    {
+      "id": "p1792298853082",
+      "stockId": "p1792298853082",
+      "shopId": "shop_1792298851197",
+      "productId": "prod_1792298853070_wzcv",
+      "name": "Organic Cotton Yarn 1792298851150",
+      "category": "Textiles",
+      "colour": "White",
+      "customColour": "",
+      "quantity": 37,
+      "unit": "meter",
+      "price": 25.5,
+      "brandName": "PureCotton",
+      "buyDate": null,
+      "transactionType": "",
+      "billNo": "",
+      "challanNo": "",
+      "location": "Shop",
+      "ragNumber": "",
+      "minStock": 5,
+      "lowStockAlertEnabled": false,
+      "lowStockThreshold": 5,
+      "createdBy": "partner_1792298851150",
+      "createdAt": "2026-10-18T04:47:33.082Z",
+      "updatedAt": "2026-10-18T04:47:33.082Z"
     }
   ],
   "activities": [
+    {
+      "id": "act_1792298853344",
+      "activityId": "act_1792298853344",
+      "shopId": "shop_1792298851197",
+      "type": "sell",
+      "productId": "prod_1792298853070_wzcv",
+      "itemId": "p1792298853082",
+      "itemName": "Organic Cotton Yarn 1792298851150",
+      "category": "Textiles",
+      "colour": "White",
+      "customColour": "",
+      "quantity": 1,
+      "unit": "meter",
+      "price": 35,
+      "brandName": "PureCotton",
+      "saleDate": "2026-10-18T04:47:33.341Z",
+      "transactionType": "",
+      "billNo": "",
+      "challanNo": "",
+      "user": "staff_1792298851150",
+      "role": "staff",
+      "timestamp": "2026-10-18T04:47:33.341Z",
+      "notes": "Counter sale",
+      "location": "Shop",
+      "ragNumber": ""
+    },
+    {
+      "id": "act_1792298853114",
+      "activityId": "act_1792298853114",
+      "shopId": "shop_1792298851197",
+      "type": "damage",
+      "productId": "prod_1792298853070_wzcv",
+      "itemId": "p1792298853082",
+      "itemName": "Organic Cotton Yarn 1792298851150",
+      "category": "Textiles",
+      "colour": "White",
+      "quantity": 2,
+      "unit": "meter",
+      "price": 25.5,
+      "user": "partner_1792298851150",
+      "role": "partner",
+      "timestamp": "2026-10-18T04:47:33.114Z",
+      "notes": "Torn edge during transit",
+      "location": "Shop",
+      "ragNumber": ""
+    },
+    {
+      "id": "act_1792298853098",
+      "activityId": "act_1792298853098",
+      "shopId": "shop_1792298851197",
+      "type": "sell",
+      "productId": "prod_1792298853070_wzcv",
+      "itemId": "p1792298853082",
+      "itemName": "Organic Cotton Yarn 1792298851150",
+      "category": "Textiles",
+      "colour": "White",
+      "customColour": "",
+      "quantity": 10,
+      "unit": "meter",
+      "price": 35,
+      "brandName": "PureCotton",
+      "saleDate": "2026-10-18T04:47:33.094Z",
+      "transactionType": "",
+      "billNo": "",
+      "challanNo": "",
+      "user": "partner_1792298851150",
+      "role": "partner",
+      "timestamp": "2026-10-18T04:47:33.094Z",
+      "notes": "Counter sale",
+      "location": "Shop",
+      "ragNumber": ""
+    },
+    {
+      "id": "act_1792298853082",
+      "activityId": "act_1792298853082",
+      "shopId": "shop_1792298851197",
+      "type": "add",
+      "productId": "prod_1792298853070_wzcv",
+      "itemId": "p1792298853082",
+      "itemName": "Organic Cotton Yarn 1792298851150",
+      "category": "Textiles",
+      "colour": "White",
+      "customColour": "",
+      "quantity": 50,
+      "unit": "meter",
+      "price": 25.5,
+      "brandName": "PureCotton",
+      "buyDate": null,
+      "transactionType": "",
+      "billNo": "",
+      "challanNo": "",
+      "user": "partner_1792298851150",
+      "role": "partner",
+      "timestamp": "2026-10-18T04:47:33.082Z",
+      "notes": "Added stock to catalog",
+      "location": "Shop",
+      "ragNumber": ""
+    },
+    {
+      "id": "act_1792298853070",
+      "activityId": "act_1792298853070",
+      "shopId": "shop_1792298851197",
+      "type": "product_add",
+      "productId": "prod_1792298853070_wzcv",
+      "itemName": "Organic Cotton Yarn 1792298851150",
+      "category": "Textiles",
+      "user": "partner_1792298851150",
+      "role": "partner",
+      "timestamp": "2026-10-18T04:47:33.070Z",
+      "notes": "Created master product \"Organic Cotton Yarn 1792298851150\" (Textiles)"
+    },
+    {
+      "id": "act_1792298759422",
+      "activityId": "act_1792298759422",
+      "shopId": "shop_1792298757797",
+      "type": "add",
+      "productId": "prod_1792298759410_s2t8",
+      "itemId": "p1792298759422",
+      "itemName": "Organic Cotton Yarn 1792298757735",
+      "category": "Textiles",
+      "colour": "White",
+      "customColour": "",
+      "quantity": 50,
+      "unit": "meter",
+      "price": 25.5,
+      "brandName": "PureCotton",
+      "buyDate": null,
+      "transactionType": "",
+      "billNo": "",
+      "challanNo": "",
+      "user": "partner_1792298757735",
+      "role": "partner",
+      "timestamp": "2026-10-18T04:45:59.422Z",
+      "notes": "Added stock to catalog",
+      "location": "Shop",
+      "ragNumber": ""
+    },
+    {
+      "id": "act_1792298759410",
+      "activityId": "act_1792298759410",
+      "shopId": "shop_1792298757797",
+      "type": "product_add",
+      "productId": "prod_1792298759410_s2t8",
+      "itemName": "Organic Cotton Yarn 1792298757735",
+      "category": "Textiles",
+      "user": "partner_1792298757735",
+      "role": "partner",
+      "timestamp": "2026-10-18T04:45:59.410Z",
+      "notes": "Created master product \"Organic Cotton Yarn 1792298757735\" (Textiles)"
+    },
     {
       "id": "act_1791519842278",
       "activityId": "act_1791519842278",
@@ -2325,6 +2813,26 @@
       "createdBy": "testowner_1791519841990",
       "createdAt": "2026-10-09T04:24:02.245Z",
       "updatedAt": "2026-10-09T04:24:02.245Z"
+    },
+    {
+      "id": "prod_1792298759410_s2t8",
+      "productId": "prod_1792298759410_s2t8",
+      "shopId": "shop_1792298757797",
+      "name": "Organic Cotton Yarn 1792298757735",
+      "category": "Textiles",
+      "createdBy": "partner_1792298757735",
+      "createdAt": "2026-10-18T04:45:59.410Z",
+      "updatedAt": "2026-10-18T04:45:59.410Z"
+    },
+    {
+      "id": "prod_1792298853070_wzcv",
+      "productId": "prod_1792298853070_wzcv",
+      "shopId": "shop_1792298851197",
+      "name": "Organic Cotton Yarn 1792298851150",
+      "category": "Textiles",
+      "createdBy": "partner_1792298851150",
+      "createdAt": "2026-10-18T04:47:33.070Z",
+      "updatedAt": "2026-10-18T04:47:33.070Z"
     }
   ]
 }

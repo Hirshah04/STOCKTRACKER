@@ -28,43 +28,43 @@ export function Sidebar({
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-      roles: ['owner', 'staff']
+      roles: ['owner', 'partner', 'staff']
     },
     {
       id: 'products',
       label: 'Products Master',
       icon: Boxes,
-      roles: ['owner']
+      roles: ['owner', 'partner']
     },
     {
       id: 'inventory',
       label: 'Stock Catalog',
       icon: Layers,
-      roles: ['owner', 'staff']
+      roles: ['owner', 'partner', 'staff']
     },
     {
       id: 'add-stock',
       label: 'Add Stock',
       icon: PlusCircle,
-      roles: ['owner']
+      roles: ['owner', 'partner']
     },
     {
       id: 'sell-stock',
       label: 'Sell Stock',
       icon: TrendingDown,
-      roles: ['owner', 'staff']
+      roles: ['owner', 'partner', 'staff']
     },
     {
       id: 'defective-stock',
       label: 'Defective Stock',
       icon: AlertOctagon,
-      roles: ['owner', 'staff']
+      roles: ['owner', 'partner', 'staff']
     },
     {
       id: 'transactions',
       label: 'Activity Logs',
       icon: ClipboardList,
-      roles: ['owner', 'staff']
+      roles: ['owner', 'partner', 'staff']
     },
     {
       id: 'profile',
@@ -115,12 +115,12 @@ export function Sidebar({
         {/* User Card */}
         <div className="sidebar-user">
           <div className="user-avatar">
-            {(user?.username || 'U').charAt(0).toUpperCase()}
+            {(user?.name || user?.email || user?.username || 'U').charAt(0).toUpperCase()}
           </div>
           <div className="user-meta">
-            <span className="user-username">{user?.username || 'User'}</span>
+            <span className="user-username">{user?.name || user?.email || user?.username || 'User'}</span>
             <span className="user-role-badge">
-              {user?.role === 'owner' ? '👑 Shop Owner' : '👤 Staff Account'}
+              {user?.role === 'owner' ? '👑 Shop Owner' : user?.role === 'partner' ? '🤝 Shop Partner' : '👤 Staff Account'}
             </span>
           </div>
         </div>

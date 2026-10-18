@@ -1,54 +1,67 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
-import { Layers, User, Lock, Store, Phone, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Layers, Mail, Lock, Store, Phone, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import ForgotPassword from './ForgotPassword';
 import './Login.css';
 
 export function Login() {
-  const { login, register } = useAuth();
+  const { login, register, authNotice, clearAuthNotice } = useAuth();
   const { showToast } = useToast();
 
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Login form state
-  const [username, setUsername] = useState('');
+  // Login form state (Email ID & Password)
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   // Register form state
   const [shopName, setShopName] = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [ownerUsername, setOwnerUsername] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [ownerName, setOwnerName] = useState('');
   const [ownerPassword, setOwnerPassword] = useState('');
 
+  // Handle Login submission
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    if (!username.trim() || !password) {
-      showToast('Please enter both username and password.', 'warning');
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
+      showToast('Please enter both your Email ID and password.', 'warning');
       return;
     }
 
     setLoading(true);
     try {
-      await login(username.trim().toLowerCase(), password);
-      showToast(`Welcome back, ${username.toUpperCase()}!`, 'success');
+      await login(cleanEmail, password);
+      showToast('Signed in successfully!', 'success');
     } catch (err) {
-      showToast(err.message || 'Invalid username or password.', 'danger');
+      showToast(err.message || 'Invalid email or password.', 'danger');
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle Shop Registration submission
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    if (!shopName.trim() || !phone.trim() || !email.trim() || !ownerUsername.trim() || !ownerPassword) {
+    const cleanEmail = registerEmail.trim().toLowerCase();
+
+    if (!shopName.trim() || !phone.trim() || !cleanEmail || !ownerPassword) {
       showToast('All registration fields are required.', 'warning');
       return;
     }
 
-    if (ownerUsername.trim().length < 3) {
-      showToast('Owner username must be at least 3 characters.', 'warning');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      showToast('Please enter a valid email address.', 'warning');
+      return;
+    }
+
+    if (ownerPassword.length < 6) {
+      showToast('Password must be at least 6 characters long.', 'warning');
       return;
     }
 
@@ -57,17 +70,22 @@ export function Login() {
       await register({
         shopName: shopName.trim(),
         phone: phone.trim(),
-        email: email.trim(),
-        ownerUsername: ownerUsername.trim().toLowerCase(),
+        email: cleanEmail,
+        ownerName: ownerName.trim() || 'Shop Owner',
         ownerPassword
       });
-      showToast('Shop registered successfully!', 'success');
+      showToast('Shop and owner account registered successfully!', 'success');
     } catch (err) {
       showToast(err.message || 'Registration failed.', 'danger');
     } finally {
       setLoading(false);
     }
   };
+
+  // If user clicked "Forgot Password?", render the ForgotPassword screen
+  if (isForgotPassword) {
+    return <ForgotPassword onBackToLogin={() => setIsForgotPassword(false)} />;
+  }
 
   return (
     <div className="auth-page-container">
@@ -84,27 +102,70 @@ export function Login() {
           </p>
         </div>
 
+        {/* Revocation / Notice Banner */}
+        {authNotice && (
+          <div
+            style={{
+              padding: '12px 14px',
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fef3c7',
+              borderLeft: '4px solid #f59e0b',
+              borderRadius: 'var(--radius-md)',
+              color: '#92400e',
+              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 20
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertCircle size={18} color="#d97706" />
+              <span>{authNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={clearAuthNotice}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b45309', fontWeight: 600, fontSize: '0.8125rem' }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {!isRegistering ? (
-          /* Sign In Form */
+          /* Sign In Form with Email ID and Forgot Password */
           <form onSubmit={handleLoginSubmit}>
             <div className="form-group">
-              <label>Username</label>
+              <label>Email ID</label>
               <div className="input-with-icon">
-                <User size={18} />
+                <Mail size={18} />
                 <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="e.g. owner or staff"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g. name@shop.com"
                   required
-                  autoComplete="username"
+                  autoComplete="email"
+                  autoFocus
                   disabled={loading}
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label>Password</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <label style={{ margin: 0 }}>Password</label>
+                <button
+                  type="button"
+                  className="auth-toggle-link"
+                  style={{ fontSize: '0.8125rem', fontWeight: 500 }}
+                  onClick={() => setIsForgotPassword(true)}
+                  disabled={loading}
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <div className="input-with-icon">
                 <Lock size={18} />
                 <input
@@ -122,7 +183,7 @@ export function Login() {
             <button
               type="submit"
               className="btn btn-primary btn-block"
-              style={{ marginTop: 8, height: 42 }}
+              style={{ marginTop: 12, height: 42 }}
               disabled={loading}
             >
               <span>{loading ? 'Signing in...' : 'Sign In'}</span>
@@ -134,7 +195,10 @@ export function Login() {
               <button
                 type="button"
                 className="auth-toggle-link"
-                onClick={() => setIsRegistering(true)}
+                onClick={() => {
+                  clearAuthNotice();
+                  setIsRegistering(true);
+                }}
               >
                 Register Shop
               </button>
@@ -180,8 +244,8 @@ export function Login() {
                   <Mail size={18} />
                   <input
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
                     placeholder="e.g. info@shop.com"
                     required
                     disabled={loading}
@@ -192,23 +256,22 @@ export function Login() {
 
             <div className="form-row">
               <div className="form-group">
-                <label>Owner Username*</label>
+                <label>Owner Full Name*</label>
                 <div className="input-with-icon">
                   <User size={18} />
                   <input
                     type="text"
-                    value={ownerUsername}
-                    onChange={(e) => setOwnerUsername(e.target.value)}
-                    placeholder="e.g. owner"
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    placeholder="e.g. John Doe"
                     required
-                    autoComplete="username"
                     disabled={loading}
                   />
                 </div>
               </div>
 
               <div className="form-group">
-                <label>Owner Password*</label>
+                <label>Password*</label>
                 <div className="input-with-icon">
                   <Lock size={18} />
                   <input
@@ -239,7 +302,10 @@ export function Login() {
               <button
                 type="button"
                 className="auth-toggle-link"
-                onClick={() => setIsRegistering(false)}
+                onClick={() => {
+                  clearAuthNotice();
+                  setIsRegistering(false);
+                }}
               >
                 Sign In
               </button>

@@ -3,9 +3,12 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+
+const { sendOtpEmail } = require('./emailService');
 
 // Models
 const Stock = require('./models/Stock');
@@ -121,7 +124,16 @@ function apiError(res, message = "An error occurred", code = 400) {
 }
 
 // ================= AUTHENTICATION & AUTHORIZATION MIDDLEWARE =================
-function authenticateToken(req, res, next) {
+function normalizeEmail(email) {
+  return (email || '').trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  if (!email || typeof email !== 'string') return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -129,28 +141,85 @@ function authenticateToken(req, res, next) {
     return apiError(res, "Access denied. Authentication token required.", 401);
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) {
       return apiError(res, "Invalid or expired token.", 401);
     }
-    req.user = decoded; // { username, role, shopId }
-    next();
+
+    try {
+      let user = null;
+      if (isMongoConnected) {
+        user = await User.findOne({
+          $or: [
+            { userId: decoded.userId },
+            { email: decoded.email },
+            { username: decoded.username || decoded.email }
+          ]
+        });
+      } else {
+        const store = loadLocalStore();
+        user = store.users.find(u => 
+          (decoded.userId && u.userId === decoded.userId) ||
+          (decoded.email && u.email && u.email.toLowerCase() === decoded.email.toLowerCase()) ||
+          (decoded.username && u.username && u.username.toLowerCase() === decoded.username.toLowerCase())
+        );
+      }
+
+      if (!user) {
+        return apiError(res, "User account no longer exists.", 401);
+      }
+
+      if (user.status === 'disabled') {
+        return apiError(res, "Your account has been disabled. Please contact the shop owner.", 403);
+      }
+
+      // Single active session validation:
+      // If the session ID in token does not match activeSessionId on user record,
+      // it means a newer login occurred on another device or the password was reset.
+      if (decoded.sessionId && user.activeSessionId && decoded.sessionId !== user.activeSessionId) {
+        return res.status(401).json({
+          success: false,
+          code: "SESSION_REVOKED",
+          message: "Your account was logged in on another device. Please sign in again."
+        });
+      }
+
+      req.user = {
+        userId: user.userId || String(user._id),
+        name: user.name || user.username || "User",
+        email: user.email,
+        username: user.username || user.name || (user.email ? user.email.split('@')[0] : "user"),
+        role: user.role,
+        shopId: user.shopId,
+        sessionId: decoded.sessionId
+      };
+
+      next();
+    } catch (dbErr) {
+      return apiError(res, "Authentication check failed: " + dbErr.message, 500);
+    }
   });
 }
 
 function requireRole(...allowedRoles) {
   return (req, res, next) => {
     if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return apiError(res, "Forbidden: Staff accounts are not authorized to perform this action.", 403);
+      return apiError(res, "Forbidden: Your account role is not authorized to perform this action.", 403);
     }
     next();
   };
 }
 
-// Helper to sanitize user object (strip password)
+// Helper to sanitize user object (strip password and sensitive reset tokens)
 function sanitizeUser(userDoc) {
   const u = userDoc.toObject ? userDoc.toObject() : { ...userDoc };
   delete u.password;
+  delete u.otpHash;
+  delete u.otpExpires;
+  delete u.otpAttempts;
+  delete u.otpLastSentAt;
+  delete u.resetTokenHash;
+  delete u.resetTokenExpires;
   delete u.__v;
   return u;
 }
@@ -198,19 +267,28 @@ app.get('/api/status', (req, res) => {
 });
 
 // 2. Auth Routes
+
+// POST /api/auth/login - Email ID & Password login with single active session enforcement
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return apiError(res, "Username and password are required", 400);
+    const { email, username, password } = req.body;
+    const loginIdentifier = normalizeEmail(email || username);
+
+    if (!loginIdentifier || !password) {
+      return apiError(res, "Email address and password are required", 400);
     }
-    const cleanUsername = username.trim().toLowerCase();
 
     let user = null;
     let shop = null;
 
     if (isMongoConnected) {
-      user = await User.findOne({ username: cleanUsername });
+      user = await User.findOne({
+        $or: [
+          { email: loginIdentifier },
+          { username: loginIdentifier }
+        ]
+      });
+
       if (user && comparePassword(password, user.password)) {
         shop = await Shop.findOne({ shopId: user.shopId });
       } else {
@@ -218,7 +296,11 @@ app.post('/api/auth/login', async (req, res) => {
       }
     } else {
       const store = loadLocalStore();
-      const found = store.users.find(u => u.username.toLowerCase() === cleanUsername);
+      const found = store.users.find(u => 
+        (u.email && u.email.toLowerCase() === loginIdentifier) ||
+        (u.username && u.username.toLowerCase() === loginIdentifier)
+      );
+
       if (found && comparePassword(password, found.password)) {
         user = found;
         shop = store.shops.find(s => s.id === user.shopId || s.shopId === user.shopId);
@@ -226,20 +308,56 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     if (!user) {
-      return apiError(res, "Invalid username or password", 401);
+      // Clear generic message without exposing whether account exists
+      return apiError(res, "Invalid email or password", 401);
     }
 
-    // Generate JWT Token
+    if (user.status === 'disabled') {
+      return apiError(res, "Your account has been disabled. Please contact the shop owner.", 403);
+    }
+
+    // Generate new active session ID to enforce single active session per account
+    const newSessionId = crypto.randomUUID();
+    user.activeSessionId = newSessionId;
+
+    if (isMongoConnected) {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { activeSessionId: newSessionId } }
+      );
+    } else {
+      const store = loadLocalStore();
+      const idx = store.users.findIndex(u => 
+        (u.email && u.email.toLowerCase() === user.email.toLowerCase()) ||
+        (u.username && u.username.toLowerCase() === user.username.toLowerCase())
+      );
+      if (idx !== -1) {
+        store.users[idx].activeSessionId = newSessionId;
+        saveLocalStore(store);
+      }
+    }
+
+    // Generate JWT Token with session info
     const tokenPayload = {
-      username: user.username,
+      userId: user.userId || String(user._id),
+      email: user.email,
+      name: user.name || user.username || "User",
       role: user.role,
-      shopId: user.shopId
+      shopId: user.shopId,
+      sessionId: newSessionId
     };
+
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
 
     return apiSuccess(res, {
       token,
-      user: { username: user.username, role: user.role, shopId: user.shopId },
+      user: {
+        userId: user.userId || String(user._id),
+        name: user.name || user.username || "User",
+        email: user.email,
+        role: user.role,
+        shopId: user.shopId
+      },
       shop: shop ? { id: shop.shopId || shop.id, name: shop.name, phone: shop.phone, email: shop.email } : null
     }, "Login successful");
   } catch (e) {
@@ -247,71 +365,411 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/register - Register Shop & Owner Account with Unique Email
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { shopName, phone, email, ownerUsername, ownerPassword } = req.body;
+    const { shopName, phone, email, ownerName, ownerUsername, ownerPassword } = req.body;
 
-    if (!shopName || !ownerUsername || !ownerPassword) {
-      return apiError(res, "Shop name, owner username, and password are required", 400);
+    const rawEmail = email || '';
+    const cleanEmail = normalizeEmail(rawEmail);
+    const password = ownerPassword;
+    const name = (ownerName || ownerUsername || '').trim();
+
+    if (!shopName || !cleanEmail || !password) {
+      return apiError(res, "Shop name, email address, and password are required", 400);
     }
 
-    if (ownerPassword.length < 4) {
-      return apiError(res, "Password must be at least 4 characters long", 400);
+    if (!isValidEmail(cleanEmail)) {
+      return apiError(res, "Please provide a valid email address", 400);
     }
 
-    const cleanUsername = ownerUsername.trim().toLowerCase();
+    if (password.length < 6) {
+      return apiError(res, "Password must be at least 6 characters long", 400);
+    }
+
     const shopId = "shop_" + Date.now();
-    const hashedPassword = hashPassword(ownerPassword);
+    const userId = "user_" + Date.now();
+    const hashedPassword = hashPassword(password);
+    const sessionId = crypto.randomUUID();
 
     if (isMongoConnected) {
-      const existingUser = await User.findOne({ username: cleanUsername });
+      const existingUser = await User.findOne({ email: cleanEmail });
       if (existingUser) {
-        return apiError(res, "Username already registered", 400);
+        return apiError(res, "An account with this email address is already registered", 400);
       }
 
       const shop = await Shop.create({
         shopId,
         name: shopName.trim(),
         phone: phone ? phone.trim() : "",
-        email: email ? email.trim() : "",
-        ownerUsername: cleanUsername
+        email: cleanEmail,
+        ownerEmail: cleanEmail,
+        ownerUsername: cleanEmail.split('@')[0]
       });
 
-      const user = await User.create({
-        username: cleanUsername,
-        password: hashedPassword,
-        role: "owner",
-        shopId
-      });
+      let user;
+      try {
+        user = await User.create({
+          userId,
+          name: name || "Shop Owner",
+          email: cleanEmail,
+          username: cleanEmail.split('@')[0],
+          phone: phone ? phone.trim() : "",
+          password: hashedPassword,
+          role: "owner",
+          shopId,
+          status: "active",
+          activeSessionId: sessionId
+        });
+      } catch (createErr) {
+        if (createErr.code === 11000) {
+          return apiError(res, "An account with this email address is already registered", 400);
+        }
+        throw createErr;
+      }
 
-      const token = jwt.sign({ username: user.username, role: user.role, shopId: user.shopId }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign({
+        userId: user.userId,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        shopId: user.shopId,
+        sessionId
+      }, JWT_SECRET, { expiresIn: '7d' });
 
       return apiSuccess(res, {
         token,
-        user: { username: user.username, role: user.role, shopId: user.shopId },
+        user: { userId: user.userId, name: user.name, email: user.email, role: user.role, shopId: user.shopId },
         shop: { id: shop.shopId, name: shop.name, phone: shop.phone, email: shop.email }
       }, "Shop & Owner account registered successfully");
     } else {
       const store = loadLocalStore();
-      if (store.users.some(u => u.username.toLowerCase() === cleanUsername)) {
-        return apiError(res, "Username already registered", 400);
+      if (store.users.some(u => u.email && u.email.toLowerCase() === cleanEmail)) {
+        return apiError(res, "An account with this email address is already registered", 400);
       }
 
-      const newShop = { id: shopId, shopId, name: shopName.trim(), phone: phone || "", email: email || "", ownerUsername: cleanUsername };
-      const newUser = { username: cleanUsername, password: hashedPassword, role: "owner", shopId };
+      const newShop = {
+        id: shopId,
+        shopId,
+        name: shopName.trim(),
+        phone: phone || "",
+        email: cleanEmail,
+        ownerEmail: cleanEmail,
+        ownerUsername: cleanEmail.split('@')[0]
+      };
+      const newUser = {
+        userId,
+        name: name || "Shop Owner",
+        email: cleanEmail,
+        username: cleanEmail.split('@')[0],
+        phone: phone || "",
+        password: hashedPassword,
+        role: "owner",
+        shopId,
+        status: "active",
+        activeSessionId: sessionId
+      };
 
       store.shops.push(newShop);
       store.users.push(newUser);
       saveLocalStore(store);
 
-      const token = jwt.sign({ username: cleanUsername, role: "owner", shopId }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign({
+        userId,
+        email: cleanEmail,
+        name: newUser.name,
+        role: "owner",
+        shopId,
+        sessionId
+      }, JWT_SECRET, { expiresIn: '7d' });
 
       return apiSuccess(res, {
         token,
-        user: { username: cleanUsername, role: "owner", shopId },
+        user: { userId, name: newUser.name, email: cleanEmail, role: "owner", shopId },
         shop: newShop
       }, "Shop registered in local storage fallback mode");
     }
+  } catch (e) {
+    return apiError(res, e.message, 500);
+  }
+});
+
+// GET /api/auth/me - Authenticated user details & session check
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+  try {
+    let shop = null;
+    if (isMongoConnected) {
+      shop = await Shop.findOne({ shopId: req.user.shopId });
+    } else {
+      const store = loadLocalStore();
+      shop = store.shops.find(s => s.id === req.user.shopId || s.shopId === req.user.shopId);
+    }
+
+    return apiSuccess(res, {
+      user: req.user,
+      shop: shop ? { id: shop.shopId || shop.id, name: shop.name, phone: shop.phone, email: shop.email } : null
+    });
+  } catch (e) {
+    return apiError(res, e.message, 500);
+  }
+});
+
+// ================= PASSWORD RESET WITH EMAIL OTP =================
+
+// Step 1: Send OTP to registered email
+app.post('/api/auth/forgot-password/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const cleanEmail = normalizeEmail(email);
+
+    if (!cleanEmail || !isValidEmail(cleanEmail)) {
+      return apiError(res, "Please enter a valid email address", 400);
+    }
+
+    // Generic confirmation message for security to prevent account enumeration
+    const genericConfirmation = "If an account exists for this email, an OTP will be sent.";
+
+    let user = null;
+    if (isMongoConnected) {
+      user = await User.findOne({ email: cleanEmail });
+    } else {
+      const store = loadLocalStore();
+      user = store.users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    }
+
+    if (!user) {
+      return apiSuccess(res, null, genericConfirmation);
+    }
+
+    // Cooldown verification (60 seconds)
+    const now = Date.now();
+    if (user.otpLastSentAt && (now - new Date(user.otpLastSentAt).getTime() < 60000)) {
+      const secondsRemaining = Math.ceil((60000 - (now - new Date(user.otpLastSentAt).getTime())) / 1000);
+      return apiError(res, `Please wait ${secondsRemaining} seconds before requesting a new OTP.`, 429);
+    }
+
+    // Generate randomly generated, cryptographically secure 6-digit OTP
+    const otp = crypto.randomInt(100000, 1000000).toString();
+    const otpHash = bcrypt.hashSync(otp, 10);
+    const otpExpires = new Date(now + 5 * 60 * 1000); // 5 minutes validity
+
+    if (isMongoConnected) {
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            otpHash,
+            otpExpires,
+            otpAttempts: 0,
+            otpLastSentAt: new Date(now),
+            resetTokenHash: null,
+            resetTokenExpires: null
+          }
+        }
+      );
+    } else {
+      const store = loadLocalStore();
+      const idx = store.users.findIndex(u => u.email && u.email.toLowerCase() === cleanEmail);
+      if (idx !== -1) {
+        store.users[idx].otpHash = otpHash;
+        store.users[idx].otpExpires = otpExpires;
+        store.users[idx].otpAttempts = 0;
+        store.users[idx].otpLastSentAt = new Date(now);
+        store.users[idx].resetTokenHash = null;
+        store.users[idx].resetTokenExpires = null;
+        saveLocalStore(store);
+      }
+    }
+
+    // Send email via emailService
+    await sendOtpEmail(cleanEmail, otp, 5);
+
+    return apiSuccess(res, null, genericConfirmation);
+  } catch (e) {
+    return apiError(res, e.message, 500);
+  }
+});
+
+// Step 2: Verify OTP
+app.post('/api/auth/forgot-password/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const cleanEmail = normalizeEmail(email);
+
+    if (!cleanEmail || !otp) {
+      return apiError(res, "Email address and 6-digit verification code are required", 400);
+    }
+
+    const cleanOtp = String(otp).trim();
+    if (!/^\d{6}$/.test(cleanOtp)) {
+      return apiError(res, "Verification code must be exactly 6 digits", 400);
+    }
+
+    let user = null;
+    if (isMongoConnected) {
+      user = await User.findOne({ email: cleanEmail });
+    } else {
+      const store = loadLocalStore();
+      user = store.users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    }
+
+    if (!user || !user.otpHash) {
+      return apiError(res, "Invalid or expired verification code", 400);
+    }
+
+    const now = Date.now();
+    // Expire OTP after 5 minutes
+    if (!user.otpExpires || now > new Date(user.otpExpires).getTime()) {
+      return apiError(res, "Verification code has expired. Please request a new one.", 400);
+    }
+
+    // Limit incorrect attempts (max 5)
+    if ((user.otpAttempts || 0) >= 5) {
+      if (isMongoConnected) {
+        await User.updateOne({ _id: user._id }, { $set: { otpHash: null, otpExpires: null } });
+      } else {
+        const store = loadLocalStore();
+        const idx = store.users.findIndex(u => u.email && u.email.toLowerCase() === cleanEmail);
+        if (idx !== -1) {
+          store.users[idx].otpHash = null;
+          store.users[idx].otpExpires = null;
+          saveLocalStore(store);
+        }
+      }
+      return apiError(res, "Too many incorrect attempts. Please request a new verification code.", 429);
+    }
+
+    // Verify OTP against hashed value
+    const isMatch = bcrypt.compareSync(cleanOtp, user.otpHash);
+    if (!isMatch) {
+      const newAttempts = (user.otpAttempts || 0) + 1;
+      if (isMongoConnected) {
+        await User.updateOne({ _id: user._id }, { $set: { otpAttempts: newAttempts } });
+      } else {
+        const store = loadLocalStore();
+        const idx = store.users.findIndex(u => u.email && u.email.toLowerCase() === cleanEmail);
+        if (idx !== -1) {
+          store.users[idx].otpAttempts = newAttempts;
+          saveLocalStore(store);
+        }
+      }
+      const attemptsLeft = Math.max(0, 5 - newAttempts);
+      return apiError(res, `Invalid verification code. ${attemptsLeft} attempt(s) remaining.`, 400);
+    }
+
+    // OTP verified: invalidate OTP immediately (single use) and issue reset authorization token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenExpires = new Date(now + 10 * 60 * 1000); // 10 minutes
+
+    if (isMongoConnected) {
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            otpHash: null,
+            otpExpires: null,
+            otpAttempts: 0,
+            resetTokenHash,
+            resetTokenExpires
+          }
+        }
+      );
+    } else {
+      const store = loadLocalStore();
+      const idx = store.users.findIndex(u => u.email && u.email.toLowerCase() === cleanEmail);
+      if (idx !== -1) {
+        store.users[idx].otpHash = null;
+        store.users[idx].otpExpires = null;
+        store.users[idx].otpAttempts = 0;
+        store.users[idx].resetTokenHash = resetTokenHash;
+        store.users[idx].resetTokenExpires = resetTokenExpires;
+        saveLocalStore(store);
+      }
+    }
+
+    return apiSuccess(res, { resetToken }, "Verification successful");
+  } catch (e) {
+    return apiError(res, e.message, 500);
+  }
+});
+
+// Step 3: Reset Password with single-use authorization token
+app.post('/api/auth/forgot-password/reset-password', async (req, res) => {
+  try {
+    const { resetToken, newPassword, confirmPassword } = req.body;
+
+    if (!resetToken) {
+      return apiError(res, "Password reset authorization token is required", 400);
+    }
+
+    if (!newPassword || !confirmPassword) {
+      return apiError(res, "New password and confirm password are required", 400);
+    }
+
+    if (newPassword !== confirmPassword) {
+      return apiError(res, "Passwords do not match", 400);
+    }
+
+    if (newPassword.length < 6) {
+      return apiError(res, "Password must be at least 6 characters long", 400);
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const now = new Date();
+
+    let user = null;
+    if (isMongoConnected) {
+      user = await User.findOne({
+        resetTokenHash: tokenHash,
+        resetTokenExpires: { $gt: now }
+      });
+    } else {
+      const store = loadLocalStore();
+      user = store.users.find(u => 
+        u.resetTokenHash === tokenHash && 
+        u.resetTokenExpires && 
+        new Date(u.resetTokenExpires).getTime() > now.getTime()
+      );
+    }
+
+    if (!user) {
+      return apiError(res, "Password reset session has expired or is invalid. Please restart the request.", 400);
+    }
+
+    const hashedPassword = hashPassword(newPassword);
+    // Invalidate all active sessions for this account
+    const newSessionId = crypto.randomUUID();
+
+    if (isMongoConnected) {
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            password: hashedPassword,
+            resetTokenHash: null,
+            resetTokenExpires: null,
+            otpHash: null,
+            otpExpires: null,
+            activeSessionId: newSessionId
+          }
+        }
+      );
+    } else {
+      const store = loadLocalStore();
+      const idx = store.users.findIndex(u => (u.userId && u.userId === user.userId) || (u.email === user.email));
+      if (idx !== -1) {
+        store.users[idx].password = hashedPassword;
+        store.users[idx].resetTokenHash = null;
+        store.users[idx].resetTokenExpires = null;
+        store.users[idx].otpHash = null;
+        store.users[idx].otpExpires = null;
+        store.users[idx].activeSessionId = newSessionId;
+        saveLocalStore(store);
+      }
+    }
+
+    return apiSuccess(res, null, "Password reset successfully. Please log in with your new password.");
   } catch (e) {
     return apiError(res, e.message, 500);
   }
@@ -374,20 +832,38 @@ app.put('/api/shops/:id', authenticateToken, requireRole("owner"), async (req, r
   }
 });
 
-// 4. Staff Accounts Routes (Owner Only)
+// 4. Team Accounts Routes - Partner & Staff Management (Owner Only)
 app.get('/api/users', authenticateToken, requireRole("owner"), async (req, res) => {
   try {
     const shopId = req.user.shopId;
 
     if (isMongoConnected) {
-      const users = await User.find({ shopId, role: "staff" }).select("-password");
-      return apiSuccess(res, users);
+      const users = await User.find({
+        shopId,
+        role: { $in: ["partner", "staff"] }
+      }).select("-password -otpHash -otpExpires -resetTokenHash -resetTokenExpires");
+
+      return apiSuccess(res, users.map(u => ({
+        id: u.userId || String(u._id),
+        userId: u.userId || String(u._id),
+        name: u.name || u.username,
+        email: u.email,
+        phone: u.phone || "",
+        role: u.role,
+        shopId: u.shopId,
+        status: u.status,
+        createdAt: u.createdAt
+      })));
     } else {
       const store = loadLocalStore();
-      const staff = store.users
-        .filter(u => u.shopId === shopId && u.role === "staff")
-        .map(({ password, ...rest }) => rest);
-      return apiSuccess(res, staff);
+      const users = store.users
+        .filter(u => u.shopId === shopId && (u.role === "partner" || u.role === "staff"))
+        .map(({ password, otpHash, otpExpires, resetTokenHash, resetTokenExpires, ...rest }) => ({
+          ...rest,
+          id: rest.userId || rest.username,
+          name: rest.name || rest.username
+        }));
+      return apiSuccess(res, users);
     }
   } catch (e) {
     return apiError(res, e.message, 500);
@@ -396,55 +872,152 @@ app.get('/api/users', authenticateToken, requireRole("owner"), async (req, res) 
 
 app.post('/api/users', authenticateToken, requireRole("owner"), async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { name, email, phone, role, password } = req.body;
     const shopId = req.user.shopId;
 
-    if (!username || !password) {
-      return apiError(res, "Username and password are required", 400);
+    if (!email || !password || !role) {
+      return apiError(res, "Email address, password, and account type are required", 400);
     }
+
+    if (!["partner", "staff"].includes(role)) {
+      return apiError(res, "Invalid account type. Allowed types: Partner, Staff", 400);
+    }
+
+    const cleanEmail = normalizeEmail(email);
+    if (!isValidEmail(cleanEmail)) {
+      return apiError(res, "Please provide a valid email address", 400);
+    }
+
     if (password.length < 4) {
       return apiError(res, "Password must be at least 4 characters long", 400);
     }
-    const cleanUsername = username.trim().toLowerCase();
+
+    const cleanName = (name || cleanEmail.split('@')[0]).trim();
+    const cleanPhone = (phone || "").trim();
     const hashedPassword = hashPassword(password);
+    const userId = "user_" + Date.now();
 
     if (isMongoConnected) {
-      const existing = await User.findOne({ username: cleanUsername });
-      if (existing) return apiError(res, "Staff username already exists", 400);
+      const existing = await User.findOne({ email: cleanEmail });
+      if (existing) {
+        return apiError(res, "An account with this email address already exists", 400);
+      }
 
-      const user = await User.create({ username: cleanUsername, password: hashedPassword, role: "staff", shopId });
-      return apiSuccess(res, { username: user.username, role: user.role, shopId: user.shopId }, "Staff account created");
+      let user;
+      try {
+        user = await User.create({
+          userId,
+          name: cleanName,
+          email: cleanEmail,
+          username: cleanEmail.split('@')[0],
+          phone: cleanPhone,
+          password: hashedPassword,
+          role,
+          shopId,
+          status: "active"
+        });
+      } catch (createErr) {
+        if (createErr.code === 11000) {
+          return apiError(res, "An account with this email address already exists", 400);
+        }
+        throw createErr;
+      }
+
+      return apiSuccess(res, {
+        id: user.userId,
+        userId: user.userId,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        shopId: user.shopId,
+        status: user.status
+      }, `${role === 'partner' ? 'Partner' : 'Staff'} account created successfully`);
     } else {
       const store = loadLocalStore();
-      if (store.users.some(u => u.username.toLowerCase() === cleanUsername)) {
-        return apiError(res, "Staff username already exists", 400);
+      if (store.users.some(u => u.email && u.email.toLowerCase() === cleanEmail)) {
+        return apiError(res, "An account with this email address already exists", 400);
       }
-      const newUser = { username: cleanUsername, password: hashedPassword, role: "staff", shopId };
+
+      const newUser = {
+        id: userId,
+        userId,
+        name: cleanName,
+        email: cleanEmail,
+        username: cleanEmail.split('@')[0],
+        phone: cleanPhone,
+        password: hashedPassword,
+        role,
+        shopId,
+        status: "active"
+      };
       store.users.push(newUser);
       saveLocalStore(store);
-      return apiSuccess(res, { username: cleanUsername, role: "staff", shopId }, "Staff account created");
+
+      return apiSuccess(res, {
+        id: userId,
+        userId,
+        name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        role,
+        shopId,
+        status: "active"
+      }, `${role === 'partner' ? 'Partner' : 'Staff'} account created successfully`);
     }
   } catch (e) {
     return apiError(res, e.message, 500);
   }
 });
 
-app.delete('/api/users/:username', authenticateToken, requireRole("owner"), async (req, res) => {
+app.delete('/api/users/:identifier', authenticateToken, requireRole("owner"), async (req, res) => {
   try {
-    const { username } = req.params;
-    const cleanUsername = username.trim().toLowerCase();
-    if (cleanUsername === "owner" || cleanUsername === req.user.username.toLowerCase()) {
-      return apiError(res, "Cannot delete primary owner account", 400);
+    const { identifier } = req.params;
+    const cleanId = (identifier || '').trim().toLowerCase();
+
+    // Prevent deleting owner or oneself
+    if (cleanId === req.user.email.toLowerCase() || cleanId === req.user.userId || cleanId === (req.user.username || '').toLowerCase()) {
+      return apiError(res, "Cannot delete your own account", 400);
     }
 
     if (isMongoConnected) {
-      await User.deleteOne({ username: cleanUsername, shopId: req.user.shopId });
-      return apiSuccess(res, null, "Staff member deleted");
+      const targetUser = await User.findOne({
+        shopId: req.user.shopId,
+        $or: [
+          { userId: identifier },
+          { email: cleanId },
+          { username: cleanId }
+        ]
+      });
+
+      if (!targetUser) {
+        return apiError(res, "User account not found", 404);
+      }
+
+      if (targetUser.role === 'owner') {
+        return apiError(res, "Cannot delete shop owner account", 400);
+      }
+
+      await User.deleteOne({ _id: targetUser._id });
+      return apiSuccess(res, null, "Account removed successfully");
     } else {
       const store = loadLocalStore();
-      store.users = store.users.filter(u => !(u.username.toLowerCase() === cleanUsername && u.shopId === req.user.shopId));
+      const idx = store.users.findIndex(u => 
+        u.shopId === req.user.shopId &&
+        (u.userId === identifier || (u.email && u.email.toLowerCase() === cleanId) || (u.username && u.username.toLowerCase() === cleanId))
+      );
+
+      if (idx === -1) {
+        return apiError(res, "User account not found", 404);
+      }
+
+      if (store.users[idx].role === 'owner') {
+        return apiError(res, "Cannot delete shop owner account", 400);
+      }
+
+      store.users.splice(idx, 1);
       saveLocalStore(store);
-      return apiSuccess(res, null, "Staff member deleted");
+      return apiSuccess(res, null, "Account removed successfully");
     }
   } catch (e) {
     return apiError(res, e.message, 500);
@@ -479,8 +1052,8 @@ app.get('/api/products', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/products (Add Master Product - Owner Only)
-app.post('/api/products', authenticateToken, requireRole("owner"), async (req, res) => {
+// POST /api/products (Add Master Product - Owner & Partner Only)
+app.post('/api/products', authenticateToken, requireRole("owner", "partner"), async (req, res) => {
   try {
     const { name, category } = req.body;
     const shopId = req.user.shopId;
@@ -693,8 +1266,8 @@ app.get('/api/stocks/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/stocks (Add Stock - Owner Only, returns 403 Forbidden for Staff!)
-app.post('/api/stocks', authenticateToken, requireRole("owner"), async (req, res) => {
+// POST /api/stocks (Add Stock - Owner & Partner Only, returns 403 Forbidden for Staff!)
+app.post('/api/stocks', authenticateToken, requireRole("owner", "partner"), async (req, res) => {
   try {
     const shopId = req.user.shopId;
     const { 
@@ -973,8 +1546,8 @@ app.post('/api/stocks', authenticateToken, requireRole("owner"), async (req, res
   }
 });
 
-// PUT /api/stocks/:id (Update Stock - Owner Only)
-app.put('/api/stocks/:id', authenticateToken, requireRole("owner"), async (req, res) => {
+// PUT /api/stocks/:id (Update Stock - Owner & Partner Only)
+app.put('/api/stocks/:id', authenticateToken, requireRole("owner", "partner"), async (req, res) => {
   try {
     const { id } = req.params;
     const shopId = req.user.shopId;
@@ -1036,8 +1609,8 @@ app.put('/api/stocks/:id', authenticateToken, requireRole("owner"), async (req, 
   }
 });
 
-// DELETE /api/stocks/:id (Owner Only)
-app.delete('/api/stocks/:id', authenticateToken, requireRole("owner"), async (req, res) => {
+// DELETE /api/stocks/:id (Owner & Partner Only)
+app.delete('/api/stocks/:id', authenticateToken, requireRole("owner", "partner"), async (req, res) => {
   try {
     const { id } = req.params;
     const shopId = req.user.shopId;

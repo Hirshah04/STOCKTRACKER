@@ -29,7 +29,7 @@ import ActivityLog from './pages/ActivityLog';
 import Profile from './pages/Profile';
 
 function MainApp() {
-  const { user, loading, isOwner } = useAuth();
+  const { user, loading, isOwner, canManageStock } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -61,8 +61,14 @@ function MainApp() {
     if (tabId !== 'sell-stock') setSellPreselectedId(null);
     if (tabId !== 'defective-stock') setDefectivePreselectedId(null);
 
-    // Enforce role restrictions
-    if (!isOwner && ['products', 'add-stock', 'profile'].includes(tabId)) {
+    // Enforce role restrictions:
+    // Partner has full inventory management access (products, add-stock)
+    // Profile is owner-only
+    if (['products', 'add-stock'].includes(tabId) && !canManageStock) {
+      setActiveTab('dashboard');
+      return;
+    }
+    if (tabId === 'profile' && !isOwner) {
       setActiveTab('dashboard');
       return;
     }
@@ -79,7 +85,7 @@ function MainApp() {
     'sell-stock': 'Sell Stock & Counter Sales',
     'defective-stock': 'Defective & Damaged Goods',
     'transactions': 'Activity Logs & Audit Trail',
-    'profile': 'Shop Settings & Staff'
+    'profile': 'Shop Settings & Team'
   };
 
   return (
@@ -103,7 +109,7 @@ function MainApp() {
             <Dashboard onNavigate={handleTabChange} />
           )}
 
-          {activeTab === 'products' && isOwner && (
+          {activeTab === 'products' && canManageStock && (
             <AddProduct />
           )}
 
@@ -115,7 +121,7 @@ function MainApp() {
             />
           )}
 
-          {activeTab === 'add-stock' && isOwner && (
+          {activeTab === 'add-stock' && canManageStock && (
             <AddStock onNavigate={handleTabChange} />
           )}
 

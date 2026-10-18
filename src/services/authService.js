@@ -1,10 +1,11 @@
 import { apiRequest } from './api';
 
 export const authService = {
-  async login(username, password) {
+  // Login with Email ID & Password
+  async login(email, password) {
     const res = await apiRequest('/api/auth/login', {
       method: 'POST',
-      body: { username, password }
+      body: { email, password }
     });
     if (res.data?.token) {
       localStorage.setItem('stocktaker_token', res.data.token);
@@ -13,6 +14,7 @@ export const authService = {
     return res;
   },
 
+  // Register New Shop & Owner Account
   async register(registrationData) {
     const res = await apiRequest('/api/auth/register', {
       method: 'POST',
@@ -39,6 +41,32 @@ export const authService = {
     return localStorage.getItem('stocktaker_token');
   },
 
+  // Password Reset APIs
+  async forgotPasswordSendOtp(email) {
+    return apiRequest('/api/auth/forgot-password/send-otp', {
+      method: 'POST',
+      body: { email }
+    });
+  },
+
+  async forgotPasswordVerifyOtp(email, otp) {
+    return apiRequest('/api/auth/forgot-password/verify-otp', {
+      method: 'POST',
+      body: { email, otp }
+    });
+  },
+
+  async forgotPasswordReset(resetToken, newPassword, confirmPassword) {
+    return apiRequest('/api/auth/forgot-password/reset-password', {
+      method: 'POST',
+      body: { resetToken, newPassword, confirmPassword }
+    });
+  },
+
+  async getMe() {
+    return apiRequest('/api/auth/me');
+  },
+
   async getShop(shopId) {
     return apiRequest(`/api/shops/${shopId}`);
   },
@@ -61,8 +89,8 @@ export const authService = {
     });
   },
 
-  async deleteUser(username) {
-    return apiRequest(`/api/users/${username}`, {
+  async deleteUser(identifier) {
+    return apiRequest(`/api/users/${identifier}`, {
       method: 'DELETE'
     });
   },
