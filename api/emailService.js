@@ -2,13 +2,22 @@ const nodemailer = require('nodemailer');
 
 // Read SMTP configuration from environment variables
 function getTransporter() {
-  const host = process.env.SMTP_HOST;
+  const host = (process.env.SMTP_HOST || '').trim();
   const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const user = (process.env.SMTP_USER || '').trim();
+  // Strip spaces from password (Google App Passwords are shown as "xxxx xxxx xxxx xxxx")
+  const rawPass = process.env.SMTP_PASS || '';
+  const pass = rawPass.replace(/\s+/g, '').trim();
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
 
   if (host && user && pass) {
+    if (host.toLowerCase().includes('gmail')) {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass }
+      });
+    }
+
     return nodemailer.createTransport({
       host,
       port,
