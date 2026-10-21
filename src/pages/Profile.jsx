@@ -1,3 +1,13 @@
+/**
+ * ==============================================================================
+ * SHOP SETTINGS & TEAM MANAGEMENT (PROFILE) PAGE
+ * ==============================================================================
+ * Manages store configuration and role-based staff access:
+ *  - Store profile updates (Shop Name, Phone Number, Official Email).
+ *  - Team account provisioning (Partner and Staff user accounts).
+ *  - Account access revocation and user deletion for owners.
+ * ==============================================================================
+ */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { authService } from '../services/authService';
@@ -43,7 +53,9 @@ export function Profile() {
     if (!isOwner) return;
     try {
       setLoadingUsers(true);
+      console.log('[Profile] Loading team accounts list (Owner privilege)...');
       const res = await authService.getUsers();
+      console.log('[Profile] Team accounts loaded:', (res.data || []).length);
       setUsersList(res.data || []);
     } catch (err) {
       console.warn('Could not load team accounts:', err);
@@ -62,6 +74,7 @@ export function Profile() {
     if (!user || !user.shopId) return;
 
     setSavingShop(true);
+    console.log('[Profile] Saving shop profile updates for shopId:', user.shopId);
     try {
       const res = await authService.updateShop(user.shopId, {
         name: shopName.trim(),
@@ -80,6 +93,7 @@ export function Profile() {
   // Create Partner or Staff Account
   const handleCreateAccount = async (e) => {
     e.preventDefault();
+    console.log('[Profile] Creating new team account:', { role: accountType, name: fullName.trim(), email: accountEmail.trim() });
     const cleanName = fullName.trim();
     const cleanEmail = accountEmail.trim().toLowerCase();
     const cleanPhone = contactNumber.trim();

@@ -1,3 +1,14 @@
+/**
+ * ==============================================================================
+ * STOCK CATEGORY (INVENTORY EXPLORER) PAGE
+ * ==============================================================================
+ * Main inventory catalog data grid with comprehensive controls:
+ *  - Instant search across product name, category, colour, brand, and bill number.
+ *  - Multi-attribute filter drawer (category, unit, transaction type, location).
+ *  - Export full inventory dataset as a downloadable CSV spreadsheet.
+ *  - Direct item quick actions: Sell, Mark Defective, or Delete item.
+ * ==============================================================================
+ */
 import React, { useState, useEffect, useMemo } from 'react';
 import { stockService } from '../services/stockService';
 import { useAuth } from '../hooks/useAuth';

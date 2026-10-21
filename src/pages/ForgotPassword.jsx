@@ -1,3 +1,13 @@
+/**
+ * ==============================================================================
+ * FORGOT PASSWORD & OTP RECOVERY PAGE
+ * ==============================================================================
+ * Handles the secure 3-step account password recovery workflow:
+ *  - Step 1 ('request_otp'): Validates email and dispatches 6-digit numeric OTP.
+ *  - Step 2 ('verify_otp'): Verifies code validity, cooldown timer, and expiry.
+ *  - Step 3 ('reset_password'): Issues single-use token to securely update password.
+ * ==============================================================================
+ */
 import React, { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { useToast } from '../hooks/useToast';
@@ -8,6 +18,13 @@ export function ForgotPassword({ onBackToLogin }) {
   const { showToast } = useToast();
 
   // Step state: 'request_otp' | 'verify_otp' | 'reset_password' | 'success'
+  useEffect(() => {
+    console.log('[ForgotPassword] Page mounted. Initial step:', step);
+  }, []);
+
+  useEffect(() => {
+    console.log('[ForgotPassword] Active recovery step transitioned to:', step);
+  }, [step]);
   const [step, setStep] = useState('request_otp');
   const [loading, setLoading] = useState(false);
 

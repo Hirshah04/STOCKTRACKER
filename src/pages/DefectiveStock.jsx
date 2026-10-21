@@ -1,3 +1,13 @@
+/**
+ * ==============================================================================
+ * DEFECTIVE / DAMAGED STOCK PAGE
+ * ==============================================================================
+ * Facilitates recording expired, damaged, or unsellable merchandise:
+ *  - Deducts defective items from active inventory count.
+ *  - Appends audit logs with specific failure reasons or notes.
+ *  - Displays history of past defective stock reports.
+ * ==============================================================================
+ */
 import React, { useState, useEffect } from 'react';
 import { stockService } from '../services/stockService';
 import { useToast } from '../hooks/useToast';

@@ -1,3 +1,13 @@
+/**
+ * ==============================================================================
+ * DASHBOARD PAGE
+ * ==============================================================================
+ * Overview analytics page displaying key stock indicators:
+ *  - Unique Products Count, Total Stock Quantity, Low Stock Items, Damaged Items.
+ *  - Today's sales summary and quick shortcut navigation buttons.
+ *  - Interactive summary modal inspection (unique catalog items, low stock alerts).
+ * ==============================================================================
+ */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { stockService } from '../services/stockService';

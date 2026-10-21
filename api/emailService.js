@@ -1,34 +1,63 @@
 const nodemailer = require('nodemailer');
 
-// Read SMTP configuration from environment variables
+/**
+ * ==============================================================================
+ * EMAIL SERVICE - OTP & NOTIFICATION DISPATCHER
+ * ==============================================================================
+ * This module configures the SMTP transport (via Nodemailer) and handles sending
+ * time-sensitive 6-digit OTP verification codes for account password resets.
+ * 
+ * Supports:
+ *  - Gmail (App Password with service: 'gmail' or smtp.gmail.com:587)
+ *  - Custom SMTP providers (SendGrid, Mailgun, Amazon SES, etc.)
+ *  - Automatic Development Fallback (prints OTP to console if SMTP is unconfigured)
+ */
+
+// Read and build SMTP transporter from environment variables
 function getTransporter() {
   const host = (process.env.SMTP_HOST || '').trim();
   const port = parseInt(process.env.SMTP_PORT || '587', 10);
   const user = (process.env.SMTP_USER || '').trim();
-  // Strip spaces from password (Google App Passwords are shown as "xxxx xxxx xxxx xxxx")
+  // Strip spaces from password (Google App Passwords are shown in 4x4 format "xxxx xxxx xxxx xxxx")
   const rawPass = process.env.SMTP_PASS || '';
   const pass = rawPass.replace(/\s+/g, '').trim();
   const secure = process.env.SMTP_SECURE === 'true' || port === 465;
 
-  if (host && user && pass) {
-    if (host.toLowerCase().includes('gmail')) {
+  console.log('[EmailService] Initializing transporter with config:', {
+    host: host || '(none)',
+    port,
+    secure,
+    user: user ? user.replace(/(.{2})(.*)(@.*)/, '$1***$3') : '(none)',
+    hasPassword: Boolean(pass)
+  });
+
+  if (user && pass) {
+    // Intelligent Gmail fallback: if host includes gmail OR user is @gmail.com (even if host is placeholder)
+    const isGmail = host.toLowerCase().includes('gmail') || user.toLowerCase().endsWith('@gmail.com');
+
+    if (isGmail) {
+      console.log('[EmailService] Configuring Nodemailer for Gmail service (smtp.gmail.com)...');
       return nodemailer.createTransport({
         service: 'gmail',
         auth: { user, pass }
       });
     }
 
-    return nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass },
-      tls: {
-        rejectUnauthorized: process.env.NODE_ENV === 'production'
-      }
-    });
+    if (host && !host.includes('example.com')) {
+      console.log(`[EmailService] Configuring Nodemailer for custom SMTP (${host}:${port})...`);
+      return nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        tls: {
+          rejectUnauthorized: process.env.NODE_ENV === 'production'
+        }
+      });
+    }
   }
 
+  console.warn('[EmailService] SMTP credentials missing or placeholder host detected. Transporter will run in simulated/dev mode.');
   return null;
 }
 
@@ -39,7 +68,15 @@ function getTransporter() {
  * @param {number} expiryMinutes - Validity in minutes (default 5)
  */
 async function sendOtpEmail(toEmail, otp, expiryMinutes = 5) {
-  const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@stocktracker.local';
+  console.log(`[EmailService] Request received to send OTP to: ${toEmail} (Expires in ${expiryMinutes}m)`);
+  
+  let fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@stocktracker.local';
+  
+  // Ensure RFC 5322 formatted sender if only email is provided
+  if (!fromAddress.includes('<') && fromAddress.includes('@')) {
+    fromAddress = `"Stock Tracker Security" <${fromAddress}>`;
+  }
+
   const transporter = getTransporter();
 
   const subject = 'Your Stock Tracker Password Reset Verification Code';
@@ -128,6 +165,7 @@ Stock Tracker Security Team`;
 
   if (transporter) {
     try {
+      console.log(`[EmailService] Attempting to deliver email to ${toEmail} via SMTP...`);
       const info = await transporter.sendMail({
         from: fromAddress,
         to: toEmail,
@@ -135,21 +173,22 @@ Stock Tracker Security Team`;
         text: textBody,
         html: htmlBody
       });
-      console.log(`[EmailService] OTP email dispatched successfully to registered address (${toEmail}). MessageId: ${info.messageId}`);
+      console.log(`[EmailService] SUCCESS: OTP email dispatched to ${toEmail}. Message ID: ${info.messageId}`);
       return { success: true, messageId: info.messageId };
     } catch (err) {
-      console.error(`[EmailService] Failed to send email via SMTP to ${toEmail}:`, err.message);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[EmailService (Dev Fallback)] OTP generated for ${toEmail}. Valid for ${expiryMinutes} minutes.`);
-      }
-      return { success: true, simulated: true, note: "Delivered via fallback due to SMTP error" };
+      console.error(`[EmailService] ERROR delivering email to ${toEmail}:`, err.message);
+      console.error(`[EmailService] Error details: code=${err.code}, response=${err.response}`);
+      console.log(`============================================================`);
+      console.log(`[EmailService DEV FALLBACK] OTP CODE FOR ${toEmail}: ${otp}`);
+      console.log(`============================================================`);
+      return { success: true, simulated: true, note: "Delivered via fallback due to SMTP error", error: err.message };
     }
   } else {
     // Development / Local mode without SMTP credentials
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[EmailService (Dev Mode)] OTP generated for ${toEmail}. Valid for ${expiryMinutes} minutes.`);
-      console.log(`SMTP not configured. Configure SMTP_HOST, SMTP_USER, SMTP_PASS in .env to send live emails.`);
-    }
+    console.log(`============================================================`);
+    console.log(`[EmailService (DEV MODE - NO SMTP)] OTP CODE FOR ${toEmail}: ${otp}`);
+    console.log(`Valid for ${expiryMinutes} minutes. Set SMTP_USER & SMTP_PASS in .env for live emails.`);
+    console.log(`============================================================`);
     return { success: true, simulated: true };
   }
 }

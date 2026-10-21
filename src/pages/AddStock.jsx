@@ -1,3 +1,13 @@
+/**
+ * ==============================================================================
+ * ADD STOCK PAGE
+ * ==============================================================================
+ * Allows shop owners and staff to record inventory replenishment:
+ *  - Links incoming stock batches to existing master products.
+ *  - Captures quantity, unit price, color, brand, bill/challan, and shelf location.
+ *  - Configures customizable low-stock threshold alert triggers.
+ * ==============================================================================
+ */
 import React, { useState, useEffect } from 'react';
 import { stockService } from '../services/stockService';
 import { productService } from '../services/productService';

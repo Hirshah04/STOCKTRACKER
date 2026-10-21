@@ -1,3 +1,14 @@
+/**
+ * ==============================================================================
+ * AUTHENTICATION PAGE (LOGIN & SHOP REGISTRATION)
+ * ==============================================================================
+ * Serves as the primary gateway to the application:
+ *  - Handles user sign-in via Email/Username and Password with JWT issuance.
+ *  - Supports single active session enforcement (revoking older device logins).
+ *  - Allows new shop owners to register their shop and owner credentials.
+ *  - Provides navigation link to ForgotPassword flow.
+ * ==============================================================================
+ */
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -12,6 +23,15 @@ export function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Lifecycle debug logging
+  React.useEffect(() => {
+    console.log('[Login] Authentication page mounted. Mode:', isRegistering ? 'Register' : 'Login');
+  }, []);
+
+  React.useEffect(() => {
+    console.log('[Login] Mode toggled. Registering:', isRegistering, 'ForgotPassword:', isForgotPassword);
+  }, [isRegistering, isForgotPassword]);
 
   // Login form state (Email ID & Password)
   const [email, setEmail] = useState('');
@@ -28,6 +48,7 @@ export function Login() {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
+    console.log('[Login] Attempting sign-in for email/username:', cleanEmail);
 
     if (!cleanEmail || !password) {
       showToast('Please enter both your Email ID and password.', 'warning');
@@ -36,9 +57,12 @@ export function Login() {
 
     setLoading(true);
     try {
+      console.log('[Login] Calling authService login...');
       await login(cleanEmail, password);
+      console.log('[Login] Signed in successfully!');
       showToast('Signed in successfully!', 'success');
     } catch (err) {
+      console.error('[Login] Sign-in failed:', err);
       showToast(err.message || 'Invalid email or password.', 'danger');
     } finally {
       setLoading(false);
@@ -49,6 +73,7 @@ export function Login() {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     const cleanEmail = registerEmail.trim().toLowerCase();
+    console.log('[Login] Registering new shop:', { shopName: shopName.trim(), email: cleanEmail, phone: phone.trim() });
 
     if (!shopName.trim() || !phone.trim() || !cleanEmail || !ownerPassword) {
       showToast('All registration fields are required.', 'warning');
@@ -67,6 +92,7 @@ export function Login() {
 
     setLoading(true);
     try {
+      console.log('[Login] Calling authService register...');
       await register({
         shopName: shopName.trim(),
         phone: phone.trim(),
@@ -74,8 +100,10 @@ export function Login() {
         ownerName: ownerName.trim() || 'Shop Owner',
         ownerPassword
       });
+      console.log('[Login] Shop registration completed successfully!');
       showToast('Shop and owner account registered successfully!', 'success');
     } catch (err) {
+      console.error('[Login] Shop registration failed:', err);
       showToast(err.message || 'Registration failed.', 'danger');
     } finally {
       setLoading(false);

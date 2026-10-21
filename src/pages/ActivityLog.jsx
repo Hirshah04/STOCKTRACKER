@@ -1,3 +1,13 @@
+/**
+ * ==============================================================================
+ * ACTIVITY LOG (TRANSACTION AUDIT TRAIL) PAGE
+ * ==============================================================================
+ * Displays the complete chronological history of all inventory movements:
+ *  - Logs: Additions, Sales, Defective write-offs, and Catalog adjustments.
+ *  - Filtering by timeframe (All time, Today, This Week, This Month, This Year).
+ *  - Filtering by specific calendar date and transaction action type.
+ * ==============================================================================
+ */
 import React, { useState, useEffect, useMemo } from 'react';
 import { stockService } from '../services/stockService';
 import { useToast } from '../hooks/useToast';

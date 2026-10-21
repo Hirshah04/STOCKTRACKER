@@ -1,3 +1,13 @@
+/**
+ * ==============================================================================
+ * SELL STOCK (COUNTER SALES) PAGE
+ * ==============================================================================
+ * Point-of-sale interface for decrementing inventory when items are sold:
+ *  - Calculates aggregate available stock across colors and variations.
+ *  - Validates requested quantity against current physical inventory levels.
+ *  - Logs sale transactions with bill/challan numbers and timestamps.
+ * ==============================================================================
+ */
 import React, { useState, useEffect, useMemo } from 'react';
 import { stockService } from '../services/stockService';
 import { productService } from '../services/productService';

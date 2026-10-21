@@ -1,0 +1,256 @@
+const fs = require('fs');
+const path = require('path');
+
+console.log('Starting updates across pages and services...');
+
+// Helper to normalize line endings
+function readNormalized(filePath) {
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function writeSafe(filePath, content) {
+  fs.writeFileSync(filePath, content, 'utf8');
+  console.log(`[UPDATED] ${filePath}`);
+}
+
+// ==========================================
+// 1. UPDATE api/emailService.js
+// ==========================================
+const emailServicePath = path.join(__dirname, '../api/emailService.js');
+let emailServiceContent = readNormalized(emailServicePath);
+
+const updatedEmailService = `const nodemailer = require('nodemailer');
+
+/**
+ * ==============================================================================
+ * EMAIL SERVICE - OTP & NOTIFICATION DISPATCHER
+ * ==============================================================================
+ * This module configures the SMTP transport (via Nodemailer) and handles sending
+ * time-sensitive 6-digit OTP verification codes for account password resets.
+ * 
+ * Supports:
+ *  - Gmail (App Password with service: 'gmail' or smtp.gmail.com:587)
+ *  - Custom SMTP providers (SendGrid, Mailgun, Amazon SES, etc.)
+ *  - Automatic Development Fallback (prints OTP to console if SMTP is unconfigured)
+ */
+
+// Read and build SMTP transporter from environment variables
+function getTransporter() {
+  const host = (process.env.SMTP_HOST || '').trim();
+  const port = parseInt(process.env.SMTP_PORT || '587', 10);
+  const user = (process.env.SMTP_USER || '').trim();
+  // Strip spaces from password (Google App Passwords are shown in 4x4 format "xxxx xxxx xxxx xxxx")
+  const rawPass = process.env.SMTP_PASS || '';
+  const pass = rawPass.replace(/\\s+/g, '').trim();
+  const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+
+  console.log('[EmailService] Initializing transporter with config:', {
+    host: host || '(none)',
+    port,
+    secure,
+    user: user ? user.replace(/(.{2})(.*)(@.*)/, '$1***$3') : '(none)',
+    hasPassword: Boolean(pass)
+  });
+
+  if (user && pass) {
+    // Intelligent Gmail fallback: if host includes gmail OR user is @gmail.com (even if host is placeholder)
+    const isGmail = host.toLowerCase().includes('gmail') || user.toLowerCase().endsWith('@gmail.com');
+
+    if (isGmail) {
+      console.log('[EmailService] Configuring Nodemailer for Gmail service (smtp.gmail.com)...');
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user, pass }
+      });
+    }
+
+    if (host && !host.includes('example.com')) {
+      console.log(\`[EmailService] Configuring Nodemailer for custom SMTP (\${host}:\${port})...\`);
+      return nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        tls: {
+          rejectUnauthorized: process.env.NODE_ENV === 'production'
+        }
+      });
+    }
+  }
+
+  console.warn('[EmailService] SMTP credentials missing or placeholder host detected. Transporter will run in simulated/dev mode.');
+  return null;
+}
+
+/**
+ * Send a 6-digit OTP email for password reset
+ * @param {string} toEmail - Recipient email address
+ * @param {string} otp - 6-digit one-time password
+ * @param {number} expiryMinutes - Validity in minutes (default 5)
+ */
+async function sendOtpEmail(toEmail, otp, expiryMinutes = 5) {
+  console.log(\`[EmailService] Request received to send OTP to: \${toEmail} (Expires in \${expiryMinutes}m)\`);
+  
+  let fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@stocktracker.local';
+  
+  // Ensure RFC 5322 formatted sender if only email is provided
+  if (!fromAddress.includes('<') && fromAddress.includes('@')) {
+    fromAddress = \`"Stock Tracker Security" <\${fromAddress}>\`;
+  }
+
+  const transporter = getTransporter();
+
+  const subject = 'Your Stock Tracker Password Reset Verification Code';
+  const textBody = \`Hello,
+
+Your verification code for resetting your Stock Tracker password is:
+
+\${otp}
+
+This one-time passcode is valid for \${expiryMinutes} minutes.
+
+For security reasons, never share this code with anyone. Stock Tracker support will never ask for your verification code.
+
+If you did not request this password reset, please ignore this email or secure your account.
+
+Regards,
+Stock Tracker Security Team\`;
+
+  const htmlBody = \`
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Code</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 520px; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); overflow: hidden;">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #4f46e5; padding: 28px 32px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 22px; font-weight: 700; letter-spacing: 0.5px;">Stock Tracker</h1>
+              <p style="margin: 4px 0 0 0; color: #e0e7ff; font-size: 13px;">Security & Password Management</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 36px 32px 28px 32px;">
+              <h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 18px; font-weight: 600;">Verification Code</h2>
+              <p style="margin: 0 0 24px 0; color: #475569; font-size: 14px; line-height: 1.5;">
+                We received a request to reset your Stock Tracker account password. Use the verification code below to proceed:
+              </p>
+
+              <!-- OTP Box -->
+              <div style="background-color: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
+                <span style="font-family: 'Courier New', Courier, monospace; font-size: 34px; font-weight: 700; letter-spacing: 8px; color: #4f46e5; display: inline-block;">\${otp}</span>
+                <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b; font-weight: 500;">
+                  Expires in \${expiryMinutes} minutes
+                </p>
+              </div>
+
+              <!-- Warning Box -->
+              <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 4px; margin-bottom: 24px;">
+                <p style="margin: 0; font-size: 13px; color: #92400e; line-height: 1.4;">
+                  <strong>Important Security Notice:</strong> Never share this code with anyone. Our team will never ask for your code.
+                </p>
+              </div>
+
+              <p style="margin: 0; color: #64748b; font-size: 13px; line-height: 1.5;">
+                If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; text-align: center;">
+              <p style="margin: 0; color: #94a3b8; font-size: 12px;">
+                © Stock Tracker Inventory Management. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+\`;
+
+  if (transporter) {
+    try {
+      console.log(\`[EmailService] Attempting to deliver email to \${toEmail} via SMTP...\`);
+      const info = await transporter.sendMail({
+        from: fromAddress,
+        to: toEmail,
+        subject,
+        text: textBody,
+        html: htmlBody
+      });
+      console.log(\`[EmailService] SUCCESS: OTP email dispatched to \${toEmail}. Message ID: \${info.messageId}\`);
+      return { success: true, messageId: info.messageId };
+    } catch (err) {
+      console.error(\`[EmailService] ERROR delivering email to \${toEmail}:\`, err.message);
+      console.error(\`[EmailService] Error details: code=\${err.code}, response=\${err.response}\`);
+      console.log(\`============================================================\`);
+      console.log(\`[EmailService DEV FALLBACK] OTP CODE FOR \${toEmail}: \${otp}\`);
+      console.log(\`============================================================\`);
+      return { success: true, simulated: true, note: "Delivered via fallback due to SMTP error", error: err.message };
+    }
+  } else {
+    // Development / Local mode without SMTP credentials
+    console.log(\`============================================================\`);
+    console.log(\`[EmailService (DEV MODE - NO SMTP)] OTP CODE FOR \${toEmail}: \${otp}\`);
+    console.log(\`Valid for \${expiryMinutes} minutes. Set SMTP_USER & SMTP_PASS in .env for live emails.\`);
+    console.log(\`============================================================\`);
+    return { success: true, simulated: true };
+  }
+}
+
+module.exports = {
+  sendOtpEmail
+};
+`;
+
+writeSafe(emailServicePath, updatedEmailService);
+
+// ==========================================
+// 2. UPDATE api/index.js (Password Reset Endpoints)
+// ==========================================
+const apiIndexPath = path.join(__dirname, '../api/index.js');
+let apiIndex = readNormalized(apiIndexPath);
+
+// Enhance OTP send endpoint logging in api/index.js
+apiIndex = apiIndex.replace(
+  `app.post('/api/auth/forgot-password/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const cleanEmail = normalizeEmail(email);`,
+  `app.post('/api/auth/forgot-password/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const cleanEmail = normalizeEmail(email);
+    console.log('[API:ForgotPassword] Request received to send OTP for email:', cleanEmail);`
+);
+
+apiIndex = apiIndex.replace(
+  `    if (!user) {
+      return apiSuccess(res, null, genericConfirmation);
+    }`,
+  `    if (!user) {
+      console.warn('[API:ForgotPassword] User with email ' + cleanEmail + ' NOT found in database. Returning generic confirmation for security.');
+      return apiSuccess(res, null, genericConfirmation);
+    }
+    console.log('[API:ForgotPassword] User found. Generating OTP for user ID:', user._id || user.userId);`
+);
+
+writeSafe(apiIndexPath, apiIndex);
+
+console.log('Backend files updated successfully.');

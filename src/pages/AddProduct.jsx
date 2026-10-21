@@ -1,3 +1,12 @@
+/**
+ * ==============================================================================
+ * MASTER PRODUCT CATALOG PAGE
+ * ==============================================================================
+ * Defines the standard product types and categories for the shop:
+ *  - Restricted to Owners and authorized managerial roles.
+ *  - Serves as the master list referenced when adding stock or selling items.
+ * ==============================================================================
+ */
 import React, { useState, useEffect } from 'react';
 import { productService } from '../services/productService';
 import { useAuth } from '../hooks/useAuth';
