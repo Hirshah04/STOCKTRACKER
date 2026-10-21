@@ -83,6 +83,18 @@ export const authService = {
     return apiRequest(`/api/shops/${shopId}`);
   },
 
+  async updateProfile(profileData) {
+    const res = await apiRequest('/api/auth/profile', {
+      method: 'PUT',
+      body: profileData
+    });
+    if (res.data?.token) {
+      localStorage.setItem('stocktaker_token', res.data.token);
+      localStorage.setItem('stocktaker_session', JSON.stringify(res.data.user));
+    }
+    return res;
+  },
+
   async updateShop(shopId, shopData) {
     return apiRequest(`/api/shops/${shopId}`, {
       method: 'PUT',

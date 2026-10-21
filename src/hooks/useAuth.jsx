@@ -133,6 +133,15 @@ export function AuthProvider({ children }) {
     sessionStorage.removeItem('stocktaker_auth_notice');
   };
 
+  const updateUserState = (updatedUser, newToken) => {
+    setUser(updatedUser);
+    localStorage.setItem('stocktaker_session', JSON.stringify(updatedUser));
+    if (newToken) {
+      setToken(newToken);
+      localStorage.setItem('stocktaker_token', newToken);
+    }
+  };
+
   const updateShopInfoState = (updated) => {
     setShopInfo(updated);
   };
@@ -172,7 +181,8 @@ export function AuthProvider({ children }) {
         setupEmail,
         logout,
         fetchShopData,
-        updateShopInfoState
+        updateShopInfoState,
+        updateUserState
       }}
     >
       {children}

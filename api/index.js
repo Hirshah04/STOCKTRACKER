@@ -880,6 +880,21 @@ app.get('/api/shops/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Helper to build robust shop query matching shopId, id, or MongoDB _id
+function getShopMongoQuery(shopId) {
+  const query = {
+    $or: [
+      { shopId: shopId },
+      { id: shopId }
+    ]
+  };
+  if (mongoose.Types.ObjectId.isValid(shopId)) {
+    query.$or.push({ _id: shopId });
+  }
+  return query;
+}
+
+// PUT /api/shops/:id - Update Shop Profile and persist changes to database
 app.put('/api/shops/:id', authenticateToken, requireRole("owner"), async (req, res) => {
   try {
     const { id } = req.params;
@@ -888,28 +903,220 @@ app.put('/api/shops/:id', authenticateToken, requireRole("owner"), async (req, r
     }
 
     const { name, phone, email } = req.body;
+    if (!name || !name.trim()) {
+      return apiError(res, "Shop name is required", 400);
+    }
+
+    const cleanName = name.trim();
+    const cleanPhone = phone !== undefined ? phone.trim() : "";
+    const cleanEmail = email ? normalizeEmail(email) : "";
+
+    console.log(`[API:Shop] Saving profile updates for shopId=${id}:`, { name: cleanName, phone: cleanPhone, email: cleanEmail });
 
     if (isMongoConnected) {
       const shop = await Shop.findOneAndUpdate(
-        { shopId: id },
-        { name: name ? name.trim() : "", phone: phone ? phone.trim() : "", email: email ? email.trim() : "" },
+        getShopMongoQuery(id),
+        {
+          $set: {
+            name: cleanName,
+            phone: cleanPhone,
+            email: cleanEmail,
+            ownerEmail: cleanEmail
+          }
+        },
         { new: true }
       );
-      if (!shop) return apiError(res, "Shop not found", 404);
-      return apiSuccess(res, shop, "Shop updated successfully");
+      if (!shop) return apiError(res, "Shop not found in database", 404);
+
+      // Keep Owner user record aligned in MongoDB User collection
+      if (cleanEmail) {
+        await User.updateMany(
+          { shopId: id, role: "owner" },
+          { $set: { email: cleanEmail, phone: cleanPhone } }
+        );
+      }
+
+      console.log(`[API:Shop] Persisted shop updates to MongoDB Atlas successfully for shopId=${id}`);
+      return apiSuccess(res, {
+        id: shop.shopId || shop.id || String(shop._id),
+        shopId: shop.shopId || shop.id || String(shop._id),
+        name: shop.name,
+        phone: shop.phone,
+        email: shop.email,
+        ownerEmail: shop.ownerEmail
+      }, "Shop profile updated successfully in database");
     } else {
       const store = loadLocalStore();
       const idx = store.shops.findIndex(s => s.id === id || s.shopId === id);
       if (idx === -1) return apiError(res, "Shop not found", 404);
 
-      store.shops[idx].name = name ? name.trim() : store.shops[idx].name;
-      store.shops[idx].phone = phone ? phone.trim() : store.shops[idx].phone;
-      store.shops[idx].email = email ? email.trim() : store.shops[idx].email;
-      saveLocalStore(store);
+      store.shops[idx].name = cleanName;
+      store.shops[idx].phone = cleanPhone;
+      store.shops[idx].email = cleanEmail;
+      store.shops[idx].ownerEmail = cleanEmail;
 
-      return apiSuccess(res, store.shops[idx], "Shop updated successfully");
+      // Sync owner user in local fallback store
+      const ownerIdx = store.users.findIndex(u => u.shopId === id && u.role === "owner");
+      if (ownerIdx !== -1 && cleanEmail) {
+        store.users[ownerIdx].email = cleanEmail;
+        store.users[ownerIdx].phone = cleanPhone;
+      }
+
+      saveLocalStore(store);
+      console.log(`[API:Shop] Persisted shop updates to local fallback store for shopId=${id}`);
+
+      return apiSuccess(res, store.shops[idx], "Shop profile updated successfully in database");
     }
   } catch (e) {
+    console.error('[API:Shop] Error updating shop:', e);
+    return apiError(res, e.message, 500);
+  }
+});
+
+// PUT /api/auth/profile - Update personal user account profile & optional password in database
+app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+  try {
+    const { name, email, phone, currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    console.log(`[API:Profile] Updating personal profile for userId=${userId}:`, { name, email, phone });
+
+    const userQuery = {
+      $or: [
+        { userId: userId },
+        { email: req.user.email }
+      ]
+    };
+    if (mongoose.Types.ObjectId.isValid(userId)) {
+      userQuery.$or.push({ _id: userId });
+    }
+
+    let userDoc = null;
+    let store = null;
+
+    if (isMongoConnected) {
+      userDoc = await User.findOne(userQuery);
+    } else {
+      store = loadLocalStore();
+      userDoc = store.users.find(u => 
+        (userId && u.userId === userId) ||
+        (req.user.email && u.email && u.email.toLowerCase() === req.user.email.toLowerCase())
+      );
+    }
+
+    if (!userDoc) {
+      return apiError(res, "User account not found in database", 404);
+    }
+
+    const cleanName = name ? name.trim() : (userDoc.name || userDoc.username);
+    const cleanPhone = phone !== undefined ? phone.trim() : (userDoc.phone || "");
+    let cleanEmail = userDoc.email;
+
+    if (email && email.trim()) {
+      cleanEmail = normalizeEmail(email);
+      if (!isValidEmail(cleanEmail)) {
+        return apiError(res, "Please provide a valid email address", 400);
+      }
+
+      // Check for email collision
+      if (cleanEmail !== (userDoc.email || '').toLowerCase()) {
+        if (isMongoConnected) {
+          const duplicate = await User.findOne({ email: cleanEmail, _id: { $ne: userDoc._id } });
+          if (duplicate) {
+            return apiError(res, "This email address is already in use by another account", 400);
+          }
+        } else {
+          const duplicate = store.users.find(u => 
+            u.email && u.email.toLowerCase() === cleanEmail && (u.userId !== userDoc.userId)
+          );
+          if (duplicate) {
+            return apiError(res, "This email address is already in use by another account", 400);
+          }
+        }
+      }
+    }
+
+    let passwordHash = userDoc.password;
+    if (newPassword && newPassword.trim()) {
+      if (!currentPassword) {
+        return apiError(res, "Current password is required to change password", 400);
+      }
+      if (!comparePassword(currentPassword, userDoc.password)) {
+        return apiError(res, "Current password is incorrect", 400);
+      }
+      if (newPassword.trim().length < 6) {
+        return apiError(res, "New password must be at least 6 characters long", 400);
+      }
+      passwordHash = hashPassword(newPassword.trim());
+    }
+
+    if (isMongoConnected) {
+      await User.updateOne(
+        { _id: userDoc._id },
+        {
+          $set: {
+            name: cleanName,
+            email: cleanEmail,
+            phone: cleanPhone,
+            password: passwordHash
+          }
+        }
+      );
+
+      // If owner, keep shop owner details aligned
+      if (userDoc.role === 'owner') {
+        await Shop.updateOne(
+          getShopMongoQuery(userDoc.shopId),
+          { $set: { ownerEmail: cleanEmail, email: cleanEmail, phone: cleanPhone } }
+        );
+      }
+    } else {
+      const idx = store.users.findIndex(u => 
+        (userId && u.userId === userId) ||
+        (userDoc.email && u.email && u.email.toLowerCase() === userDoc.email.toLowerCase())
+      );
+      if (idx !== -1) {
+        store.users[idx].name = cleanName;
+        store.users[idx].email = cleanEmail;
+        store.users[idx].phone = cleanPhone;
+        store.users[idx].password = passwordHash;
+
+        if (userDoc.role === 'owner') {
+          const sIdx = store.shops.findIndex(s => s.id === userDoc.shopId || s.shopId === userDoc.shopId);
+          if (sIdx !== -1) {
+            store.shops[sIdx].ownerEmail = cleanEmail;
+            store.shops[sIdx].email = cleanEmail;
+            store.shops[sIdx].phone = cleanPhone;
+          }
+        }
+        saveLocalStore(store);
+      }
+    }
+
+    const sessionId = userDoc.activeSessionId || req.user.sessionId || crypto.randomUUID();
+    const token = jwt.sign({
+      userId: userDoc.userId || String(userDoc._id),
+      email: cleanEmail,
+      name: cleanName,
+      role: userDoc.role,
+      shopId: userDoc.shopId,
+      sessionId
+    }, JWT_SECRET, { expiresIn: '7d' });
+
+    const safeUser = {
+      userId: userDoc.userId || String(userDoc._id),
+      id: userDoc.userId || String(userDoc._id),
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      role: userDoc.role,
+      shopId: userDoc.shopId
+    };
+
+    console.log(`[API:Profile] Persisted user profile updates to database for ${cleanEmail}`);
+    return apiSuccess(res, { user: safeUser, token }, "Account profile updated successfully in database");
+  } catch (e) {
+    console.error('[API:Profile] Error updating user profile:', e);
     return apiError(res, e.message, 500);
   }
 });

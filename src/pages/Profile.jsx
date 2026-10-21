@@ -4,6 +4,7 @@
  * ==============================================================================
  * Manages store configuration and role-based staff access:
  *  - Store profile updates (Shop Name, Phone Number, Official Email).
+ *  - Personal account profile updates (Name, Email, Phone, and Password).
  *  - Team account provisioning (Partner and Staff user accounts).
  *  - Account access revocation and user deletion for owners.
  * ==============================================================================
@@ -14,11 +15,11 @@ import { authService } from '../services/authService';
 import { useToast } from '../hooks/useToast';
 import ConfirmationModal from '../components/ConfirmationModal';
 import LoadingIndicator from '../components/LoadingIndicator';
-import { Store, UserPlus, Users, Trash2, Check, Shield, UserCheck, AlertCircle } from 'lucide-react';
+import { Store, User, UserPlus, Users, Trash2, Check, Shield, UserCheck, KeyRound, Lock, Phone, Mail } from 'lucide-react';
 import './Profile.css';
 
 export function Profile() {
-  const { user, shopInfo, updateShopInfoState, isOwner } = useAuth();
+  const { user, shopInfo, updateShopInfoState, updateUserState, isOwner } = useAuth();
   const { showToast } = useToast();
 
   // Shop Details State
@@ -26,6 +27,15 @@ export function Profile() {
   const [shopPhone, setShopPhone] = useState(shopInfo?.phone || '');
   const [shopEmail, setShopEmail] = useState(shopInfo?.email || '');
   const [savingShop, setSavingShop] = useState(false);
+
+  // Personal User Account State
+  const [personalName, setPersonalName] = useState(user?.name || '');
+  const [personalEmail, setPersonalEmail] = useState(user?.email || '');
+  const [personalPhone, setPersonalPhone] = useState(user?.phone || '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingPersonal, setSavingPersonal] = useState(false);
 
   // Team Account Creation State (Partner & Staff)
   const [usersList, setUsersList] = useState([]);
@@ -49,6 +59,14 @@ export function Profile() {
     }
   }, [shopInfo]);
 
+  useEffect(() => {
+    if (user) {
+      setPersonalName(user.name || '');
+      setPersonalEmail(user.email || '');
+      setPersonalPhone(user.phone || '');
+    }
+  }, [user]);
+
   const loadUsers = async () => {
     if (!isOwner) return;
     try {
@@ -68,10 +86,18 @@ export function Profile() {
     loadUsers();
   }, [isOwner]);
 
-  // Update Shop Profile
+  // Update Shop Profile in Database
   const handleSaveShopProfile = async (e) => {
     e.preventDefault();
-    if (!user || !user.shopId) return;
+    if (!user || !user.shopId) {
+      showToast('Shop identifier missing from active session.', 'danger');
+      return;
+    }
+
+    if (!shopName.trim()) {
+      showToast('Please enter a shop name.', 'warning');
+      return;
+    }
 
     setSavingShop(true);
     console.log('[Profile] Saving shop profile updates for shopId:', user.shopId);
@@ -81,16 +107,91 @@ export function Profile() {
         phone: shopPhone.trim(),
         email: shopEmail.trim().toLowerCase()
       });
-      updateShopInfoState(res.data);
-      showToast('Shop profile updated successfully!', 'success');
+
+      if (updateShopInfoState) {
+        updateShopInfoState(res.data);
+      }
+
+      // If user is owner, keep local user state in sync with updated shop contact info
+      if (isOwner && updateUserState) {
+        updateUserState({
+          ...user,
+          phone: shopPhone.trim(),
+          email: shopEmail.trim().toLowerCase()
+        });
+      }
+
+      showToast('Shop profile updated successfully in database!', 'success');
     } catch (err) {
-      showToast('Failed to update shop: ' + err.message, 'danger');
+      console.error('[Profile] Failed to update shop in database:', err);
+      showToast('Failed to update shop: ' + (err.message || 'Server error'), 'danger');
     } finally {
       setSavingShop(false);
     }
   };
 
-  // Create Partner or Staff Account
+  // Update Personal User Account in Database
+  const handleSavePersonalProfile = async (e) => {
+    e.preventDefault();
+    if (!personalName.trim()) {
+      showToast('Please enter your name.', 'warning');
+      return;
+    }
+
+    const cleanEmail = personalEmail.trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      showToast('Please enter a valid email address.', 'warning');
+      return;
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        showToast('Please enter your current password to set a new password.', 'warning');
+        return;
+      }
+      if (newPassword.length < 6) {
+        showToast('New password must be at least 6 characters long.', 'warning');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        showToast('New passwords do not match.', 'warning');
+        return;
+      }
+    }
+
+    setSavingPersonal(true);
+    console.log('[Profile] Saving personal account updates in database...');
+    try {
+      const payload = {
+        name: personalName.trim(),
+        email: cleanEmail,
+        phone: personalPhone.trim()
+      };
+
+      if (newPassword) {
+        payload.currentPassword = currentPassword;
+        payload.newPassword = newPassword;
+      }
+
+      const res = await authService.updateProfile(payload);
+      if (updateUserState) {
+        updateUserState(res.data.user, res.data.token);
+      }
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      showToast('Personal account profile updated successfully in database!', 'success');
+    } catch (err) {
+      console.error('[Profile] Failed to update user profile in database:', err);
+      showToast('Failed to update account: ' + (err.message || 'Server error'), 'danger');
+    } finally {
+      setSavingPersonal(false);
+    }
+  };
+
+  // Create Partner or Staff Account in Database
   const handleCreateAccount = async (e) => {
     e.preventDefault();
     console.log('[Profile] Creating new team account:', { role: accountType, name: fullName.trim(), email: accountEmail.trim() });
@@ -129,7 +230,7 @@ export function Profile() {
         password: cleanPassword
       });
 
-      showToast(res.message || `${accountType === 'partner' ? 'Partner' : 'Staff'} account created successfully!`, 'success');
+      showToast(res.message || `${accountType === 'partner' ? 'Partner' : 'Staff'} account created successfully in database!`, 'success');
       setFullName('');
       setAccountEmail('');
       setContactNumber('');
@@ -142,13 +243,13 @@ export function Profile() {
     }
   };
 
-  // Confirm Delete Team Member
+  // Confirm Delete Team Member from Database
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     setDeletingUser(true);
     try {
       await authService.deleteUser(deleteTarget.id || deleteTarget.email);
-      showToast(`Account "${deleteTarget.name || deleteTarget.email}" removed.`, 'info');
+      showToast(`Account "${deleteTarget.name || deleteTarget.email}" removed from database.`, 'info');
       setDeleteTarget(null);
       await loadUsers();
     } catch (err) {
@@ -162,56 +263,185 @@ export function Profile() {
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Shop Settings & Team</h1>
+          <h1 className="page-title">Profile & Settings</h1>
           <p className="page-subtitle">
-            Configure your shop profile and manage Partner & Staff accounts.
+            Configure your shop profile, update personal credentials, and manage team accounts.
           </p>
         </div>
       </div>
 
       <div className="profile-grid-layout">
-        {/* Shop Profile Form */}
+        {/* Card 1: Shop Profile Form (Owner only) */}
+        {isOwner && (
+          <div className="profile-card">
+            <div className="profile-card-header">
+              <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Store size={20} color="var(--primary)" />
+                <span>Shop Profile Information</span>
+              </h3>
+            </div>
+
+            <form onSubmit={handleSaveShopProfile}>
+              <div className="form-group">
+                <label>Shop Name*</label>
+                <input
+                  type="text"
+                  value={shopName}
+                  onChange={(e) => setShopName(e.target.value)}
+                  placeholder="e.g. Acme Cloth Emporium"
+                  required
+                  className="form-control"
+                  disabled={savingShop}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Contact Phone*</label>
+                  <input
+                    type="tel"
+                    value={shopPhone}
+                    onChange={(e) => setShopPhone(e.target.value)}
+                    placeholder="e.g. +1 555-0100"
+                    required
+                    className="form-control"
+                    disabled={savingShop}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Official Email Address*</label>
+                  <input
+                    type="email"
+                    value={shopEmail}
+                    onChange={(e) => setShopEmail(e.target.value)}
+                    placeholder="e.g. store@shop.com"
+                    required
+                    className="form-control"
+                    disabled={savingShop}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingShop}
+                >
+                  <Check size={16} />
+                  <span>{savingShop ? 'Updating Database...' : 'Save Shop Profile'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Card 2: Personal User Account Information */}
         <div className="profile-card">
           <div className="profile-card-header">
             <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Store size={20} color="var(--primary)" />
-              <span>Shop Profile Information</span>
+              <User size={20} color="var(--primary)" />
+              <span>Personal Account Profile</span>
             </h3>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                padding: '3px 10px',
+                borderRadius: '999px',
+                fontWeight: 600,
+                textTransform: 'capitalize',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                color: 'var(--primary)'
+              }}
+            >
+              Role: {user?.role || 'User'}
+            </span>
           </div>
 
-          <form onSubmit={handleSaveShopProfile}>
+          <form onSubmit={handleSavePersonalProfile}>
             <div className="form-group">
-              <label>Shop Name*</label>
+              <label>Full Name*</label>
               <input
                 type="text"
-                value={shopName}
-                onChange={(e) => setShopName(e.target.value)}
+                value={personalName}
+                onChange={(e) => setPersonalName(e.target.value)}
+                placeholder="Your Full Name"
                 required
                 className="form-control"
+                disabled={savingPersonal}
               />
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label>Contact Phone*</label>
+                <label>Login Email*</label>
                 <input
-                  type="tel"
-                  value={shopPhone}
-                  onChange={(e) => setShopPhone(e.target.value)}
+                  type="email"
+                  value={personalEmail}
+                  onChange={(e) => setPersonalEmail(e.target.value)}
+                  placeholder="your.email@example.com"
                   required
                   className="form-control"
+                  disabled={savingPersonal}
                 />
               </div>
 
               <div className="form-group">
-                <label>Email Address*</label>
+                <label>Phone Number</label>
                 <input
-                  type="email"
-                  value={shopEmail}
-                  onChange={(e) => setShopEmail(e.target.value)}
-                  required
+                  type="tel"
+                  value={personalPhone}
+                  onChange={(e) => setPersonalPhone(e.target.value)}
+                  placeholder="+1 555-0199"
                   className="form-control"
+                  disabled={savingPersonal}
                 />
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-color)' }}>
+              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <KeyRound size={15} />
+                <span>Change Password (Leave blank to keep unchanged)</span>
+              </h4>
+
+              <div className="form-group">
+                <label>Current Password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                  className="form-control"
+                  disabled={savingPersonal}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>New Password</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    className="form-control"
+                    disabled={savingPersonal}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="form-control"
+                    disabled={savingPersonal}
+                  />
+                </div>
               </div>
             </div>
 
@@ -219,22 +449,22 @@ export function Profile() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={savingShop}
+                disabled={savingPersonal}
               >
                 <Check size={16} />
-                <span>{savingShop ? 'Saving...' : 'Save Profile Changes'}</span>
+                <span>{savingPersonal ? 'Updating Database...' : 'Save Account Changes'}</span>
               </button>
             </div>
           </form>
         </div>
 
-        {/* Team Accounts Management (Owner Only) */}
+        {/* Card 3: Team Accounts Management (Owner Only) */}
         {isOwner && (
-          <div className="profile-card">
+          <div className="profile-card" style={{ gridColumn: '1 / -1' }}>
             <div className="profile-card-header">
               <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <UserPlus size={20} color="var(--primary)" />
-                <span>Create Team Account</span>
+                <span>Team Accounts Management</span>
               </h3>
             </div>
 
@@ -341,7 +571,7 @@ export function Profile() {
                 style={{ width: '100%', marginTop: 8 }}
               >
                 <UserPlus size={16} />
-                <span>{creatingAccount ? 'Creating Account...' : `Create ${accountType === 'partner' ? 'Partner' : 'Staff'} Account`}</span>
+                <span>{creatingAccount ? 'Creating Account in Database...' : `Create ${accountType === 'partner' ? 'Partner' : 'Staff'} Account`}</span>
               </button>
             </form>
 
@@ -354,7 +584,7 @@ export function Profile() {
               </div>
 
               {loadingUsers ? (
-                <LoadingIndicator text="Loading team accounts..." />
+                <LoadingIndicator text="Loading team accounts from database..." />
               ) : usersList.length === 0 ? (
                 <div className="empty-state" style={{ padding: '24px 0' }}>
                   <Users size={32} color="var(--text-muted)" style={{ opacity: 0.7 }} />
