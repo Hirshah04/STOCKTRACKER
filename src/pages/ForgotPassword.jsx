@@ -18,13 +18,6 @@ export function ForgotPassword({ onBackToLogin }) {
   const { showToast } = useToast();
 
   // Step state: 'request_otp' | 'verify_otp' | 'reset_password' | 'success'
-  useEffect(() => {
-    console.log('[ForgotPassword] Page mounted. Initial step:', step);
-  }, []);
-
-  useEffect(() => {
-    console.log('[ForgotPassword] Active recovery step transitioned to:', step);
-  }, [step]);
   const [step, setStep] = useState('request_otp');
   const [loading, setLoading] = useState(false);
 
@@ -38,6 +31,15 @@ export function ForgotPassword({ onBackToLogin }) {
   // Cooldown & Expiry timers
   const [resendCooldown, setResendCooldown] = useState(0);
   const [otpExpiresIn, setOtpExpiresIn] = useState(300); // 5 minutes in seconds
+
+  // Lifecycle debug logging (after state variables are initialized)
+  useEffect(() => {
+    console.log('[ForgotPassword] Page mounted. Initial step:', step);
+  }, []);
+
+  useEffect(() => {
+    console.log('[ForgotPassword] Active recovery step transitioned to:', step);
+  }, [step]);
 
   // Timer intervals
   useEffect(() => {
@@ -67,78 +69,96 @@ export function ForgotPassword({ onBackToLogin }) {
     return `${mins}:${remainder < 10 ? '0' : ''}${remainder}`;
   };
 
-  // Step 1: Send OTP
+  // Step 1: Send OTP to User's Email
   const handleSendOtp = async (e) => {
     if (e) e.preventDefault();
     const cleanEmail = email.trim().toLowerCase();
+    console.log('[ForgotPassword] Initiating Send OTP request for email:', cleanEmail);
 
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      console.warn('[ForgotPassword] Invalid email format:', cleanEmail);
       showToast('Please enter a valid email address.', 'warning');
       return;
     }
 
     setLoading(true);
     try {
+      console.log('[ForgotPassword] Calling authService.forgotPasswordSendOtp...');
       const res = await authService.forgotPasswordSendOtp(cleanEmail);
+      console.log('[ForgotPassword] Send OTP response received:', res);
       showToast(res.message || 'If an account exists for this email, an OTP will be sent.', 'info');
       setStep('verify_otp');
       setResendCooldown(60); // 60 seconds cooldown
       setOtpExpiresIn(300); // 5 minutes validity
     } catch (err) {
+      console.error('[ForgotPassword] Failed to send OTP:', err);
       showToast(err.message || 'Failed to send OTP.', 'danger');
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 2: Verify OTP
+  // Step 2: Verify the 6-Digit OTP code
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     const cleanOtp = otp.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    console.log('[ForgotPassword] Submitting OTP verification for email:', cleanEmail, 'Entered OTP:', cleanOtp);
 
     if (!cleanOtp || cleanOtp.length !== 6 || !/^\d{6}$/.test(cleanOtp)) {
+      console.warn('[ForgotPassword] Invalid OTP length or format:', cleanOtp);
       showToast('Please enter the 6-digit numeric verification code.', 'warning');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await authService.forgotPasswordVerifyOtp(email.trim().toLowerCase(), cleanOtp);
+      console.log('[ForgotPassword] Calling authService.forgotPasswordVerifyOtp...');
+      const res = await authService.forgotPasswordVerifyOtp(cleanEmail, cleanOtp);
+      console.log('[ForgotPassword] OTP verification response:', res);
       showToast('Verification code confirmed!', 'success');
       setResetToken(res.data.resetToken);
       setStep('reset_password');
     } catch (err) {
+      console.error('[ForgotPassword] OTP verification failed:', err);
       showToast(err.message || 'Invalid or expired verification code.', 'danger');
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 3: Reset Password
+  // Step 3: Set New Password using Reset Token
   const handleResetPassword = async (e) => {
     e.preventDefault();
+    console.log('[ForgotPassword] Submitting password reset request...');
 
     if (!newPassword || !confirmPassword) {
+      console.warn('[ForgotPassword] Password fields incomplete');
       showToast('Please fill in both password fields.', 'warning');
       return;
     }
 
     if (newPassword !== confirmPassword) {
+      console.warn('[ForgotPassword] Passwords do not match');
       showToast('New passwords do not match. Please re-enter.', 'warning');
       return;
     }
 
     if (newPassword.length < 6) {
+      console.warn('[ForgotPassword] Password length too short');
       showToast('Password must be at least 6 characters long.', 'warning');
       return;
     }
 
     setLoading(true);
     try {
+      console.log('[ForgotPassword] Calling authService.forgotPasswordReset...');
       const res = await authService.forgotPasswordReset(resetToken, newPassword, confirmPassword);
+      console.log('[ForgotPassword] Password reset success response:', res);
       showToast(res.message || 'Password reset successfully!', 'success');
       setStep('success');
     } catch (err) {
+      console.error('[ForgotPassword] Password reset error:', err);
       showToast(err.message || 'Failed to reset password. The session may have expired.', 'danger');
     } finally {
       setLoading(false);
@@ -208,7 +228,7 @@ export function ForgotPassword({ onBackToLogin }) {
               </div>
               <h1>Enter Verification Code</h1>
               <p>
-                We sent a 6-digit code to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>.
+                We sent a 6-digit code to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>
               </p>
             </div>
 
